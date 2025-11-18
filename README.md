@@ -26,13 +26,26 @@ Endpoints (available at http://localhost:5001):
 - `GET /error` - Simulates errors for testing
 
 Each request generates:
-- Automatic traces sent to the collector via OTLP
-- Structured JSON logs with fields:
+- **Traces**: Automatic distributed traces via OTLP
+- **Metrics**: Custom application metrics via OTLP
+- **Logs**: Structured JSON logs with fields:
   - `timestamp` (ISO 8601 format with timezone)
   - `severity` (INFO, WARNING, ERROR)
   - `trace_id` (32-character hex string)
   - `span_id` (16-character hex string)
   - `message` (log message)
+
+### Metrics Collected
+
+Custom application metrics:
+- **http.server.requests** - Counter of HTTP requests by endpoint and method
+- **app.greetings.total** - Counter of greetings by name
+- **app.calculations.total** - Counter of calculations by operation type
+- **app.calculation.result** - Histogram of calculation results
+
+Auto-instrumented metrics:
+- **http.server.duration** - Histogram of HTTP request durations
+- **http.server.active_requests** - Gauge of active HTTP requests
 
 Example log entry:
 ```json
