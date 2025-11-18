@@ -597,10 +597,15 @@
         });
 
         function startAutoRefresh() {
+            // Fast refresh for metrics, normal for others
             autoRefreshInterval = setInterval(() => {
                 loadStats();
-                refreshCurrentTab();
-            }, 5000); // Refresh every 5 seconds
+                if (currentTab === 'metrics') {
+                    loadMetrics(); // Refresh metrics every 2 seconds
+                } else {
+                    refreshCurrentTab();
+                }
+            }, 2000); // Refresh every 2 seconds
         }
 
         function switchTab(tab) {
@@ -652,18 +657,22 @@
                     return;
                 }
                 
-                container.innerHTML = traces.map(trace => `
-                    <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
-                        <div class="trace-header">
-                            <div class="trace-name">${trace.root_span_name}</div>
-                            <div class="trace-duration">${trace.duration_ms.toFixed(2)}ms</div>
+                container.innerHTML = traces.map(trace => {
+                    const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
+                    
+                    return `
+                        <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
+                            <div class="trace-header">
+                                <div class="trace-name">${trace.root_span_name}</div>
+                                <div class="trace-duration">${trace.duration_ms.toFixed(2)}ms</div>
+                            </div>
+                            <div class="trace-meta">
+                                <span>${trace.span_count} spans</span>
+                                <span class="trace-id">${displayTraceId}</span>
+                            </div>
                         </div>
-                        <div class="trace-meta">
-                            <span>${trace.span_count} spans</span>
-                            <span class="trace-id">${trace.trace_id.substring(0, 16)}...</span>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('Error loading traces:', error);
                 document.getElementById('traces-container').innerHTML = '<div class="empty">Error loading traces</div>';
@@ -723,9 +732,10 @@
             const traceDuration = traceEnd - traceStart;
             
             const container = document.getElementById('trace-detail-container');
+            const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
             
             container.innerHTML = `
-                <h2>Trace: ${trace.trace_id}</h2>
+                <h2>Trace: ${displayTraceId}</h2>
                 <p>${trace.span_count} spans - ${(traceDuration / 1_000_000).toFixed(2)}ms total</p>
                 <div class="waterfall">
                     ${spans.map(span => {
@@ -777,12 +787,15 @@
                     const traceId = log.trace_id || log.traceId || '';
                     const message = log.message || '';
                     
+                    // Remove leading zeros but keep at least one digit
+                    const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
+                    
                     return `
                         <div class="log-item">
                             <div>
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
-                                ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${traceId}</span></span>` : ''}
+                                ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
                                 <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
                             </div>
                             <div class="log-message">${message}</div>
@@ -826,12 +839,15 @@
                     const message = log.message || '';
                     const traceId = log.trace_id || log.traceId || '';
                     
+                    // Remove leading zeros but keep at least one digit
+                    const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
+                    
                     return `
                         <div class="log-item">
                             <div>
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
-                                ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${traceId}</span></span>` : ''}
+                                ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
                                 <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
                             </div>
                             <div class="log-message">${message}</div>
@@ -873,8 +889,9 @@
                 container.innerHTML = metricNames.map(name => `
                     <div class="metric-card">
                         <div class="metric-name">${name}</div>
-                        <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}">
+                        <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
                             <canvas></canvas>
+                            <div class="metric-tooltip"></div>
                         </div>
                     </div>
                 `).join('');
@@ -889,6 +906,9 @@
             }
         }
 
+        // Store previous metric data for animation
+        let metricDataCache = {};
+
         async function loadMetricData(name) {
             try {
                 const response = await fetch(`/api/metrics/${name}`);
@@ -897,18 +917,21 @@
                 if (data.data.length === 0) return;
                 
                 const chartId = `metric-${name.replace(/\./g, '-')}`;
-                const canvas = document.querySelector(`#${chartId} canvas`);
+                const chartContainer = document.querySelector(`#${chartId}`);
+                const canvas = chartContainer?.querySelector('canvas');
+                const tooltip = chartContainer?.querySelector('.metric-tooltip');
                 if (!canvas) return;
                 
                 const ctx = canvas.getContext('2d');
                 const points = data.data;
                 
+                // Store previous data
+                const previousData = metricDataCache[name] || points;
+                metricDataCache[name] = points;
+                
                 // Set canvas size
                 canvas.width = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
-                
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
                 const values = points.map(p => p.value);
                 const maxValue = Math.max(...values);
@@ -919,59 +942,138 @@
                 const chartWidth = canvas.width - padding * 2;
                 const chartHeight = canvas.height - padding * 2;
                 
-                // Draw grid lines
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.lineWidth = 1;
-                for (let i = 0; i <= 4; i++) {
-                    const y = padding + (i * chartHeight / 4);
+                // Animation frame counter
+                let animationProgress = 0;
+                const animationDuration = 500; // ms
+                const startTime = Date.now();
+                
+                function animate() {
+                    const elapsed = Date.now() - startTime;
+                    animationProgress = Math.min(elapsed / animationDuration, 1);
+                    
+                    // Easing function (ease-out)
+                    const eased = 1 - Math.pow(1 - animationProgress, 3);
+                    
+                    // Clear canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw grid lines
+                    ctx.strokeStyle = '#e0e0e0';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i <= 4; i++) {
+                        const y = padding + (i * chartHeight / 4);
+                        ctx.beginPath();
+                        ctx.moveTo(padding, y);
+                        ctx.lineTo(canvas.width - padding, y);
+                        ctx.stroke();
+                    }
+                    
+                    // Draw line with animation
+                    ctx.strokeStyle = '#2c5aa0';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(padding, y);
-                    ctx.lineTo(canvas.width - padding, y);
+                    
+                    const pointCoords = [];
+                    points.forEach((point, i) => {
+                        // Interpolate between old and new values
+                        let displayValue = point.value;
+                        if (previousData[i]) {
+                            displayValue = previousData[i].value + (point.value - previousData[i].value) * eased;
+                        }
+                        
+                        const x = padding + (i / (points.length - 1)) * chartWidth;
+                        const y = padding + chartHeight - ((displayValue - minValue) / range) * chartHeight;
+                        
+                        pointCoords.push({ x, y, value: point.value, timestamp: point.timestamp });
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    
                     ctx.stroke();
+                    
+                    // Draw points
+                    ctx.fillStyle = '#2c5aa0';
+                    pointCoords.forEach(coord => {
+                        ctx.beginPath();
+                        ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    
+                    // Draw labels
+                    ctx.fillStyle = '#666';
+                    ctx.font = '9px -apple-system';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(maxValue.toFixed(1), padding - 5, padding + 5);
+                    ctx.fillText(minValue.toFixed(1), padding - 5, canvas.height - padding + 5);
+                    
+                    // Draw last value (larger) with fade-in
+                    const lastValue = values[values.length - 1];
+                    ctx.globalAlpha = eased;
+                    ctx.fillStyle = '#2c5aa0';
+                    ctx.font = 'bold 14px -apple-system';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2 + 5);
+                    ctx.globalAlpha = 1;
+                    
+                    // Continue animation if not complete
+                    if (animationProgress < 1) {
+                        requestAnimationFrame(animate);
+                    }
                 }
                 
-                // Draw line
-                ctx.strokeStyle = '#2c5aa0';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
+                animate();
                 
-                points.forEach((point, i) => {
-                    const x = padding + (i / (points.length - 1)) * chartWidth;
-                    const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
+                // Add hover interactivity
+                canvas.onmousemove = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
                     
-                    if (i === 0) {
-                        ctx.moveTo(x, y);
+                    // Find nearest point
+                    let nearestPoint = null;
+                    let nearestDistance = Infinity;
+                    
+                    points.forEach((point, i) => {
+                        const x = padding + (i / (points.length - 1)) * chartWidth;
+                        const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
+                        const distance = Math.sqrt(Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2));
+                        
+                        if (distance < nearestDistance && distance < 20) {
+                            nearestDistance = distance;
+                            nearestPoint = { x, y, value: point.value, timestamp: point.timestamp };
+                        }
+                    });
+                    
+                    if (nearestPoint) {
+                        // Show tooltip
+                        const date = new Date(nearestPoint.timestamp * 1000);
+                        const timeStr = date.toLocaleTimeString();
+                        tooltip.innerHTML = `${timeStr}<br>Value: ${nearestPoint.value.toFixed(2)}`;
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = (nearestPoint.x + 10) + 'px';
+                        tooltip.style.top = (nearestPoint.y - 30) + 'px';
+                        
+                        // Highlight point
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        animate();
+                        ctx.fillStyle = '#ff6b6b';
+                        ctx.beginPath();
+                        ctx.arc(nearestPoint.x, nearestPoint.y, 5, 0, Math.PI * 2);
+                        ctx.fill();
                     } else {
-                        ctx.lineTo(x, y);
+                        tooltip.style.display = 'none';
                     }
-                });
+                };
                 
-                ctx.stroke();
-                
-                // Draw points
-                ctx.fillStyle = '#2c5aa0';
-                points.forEach((point, i) => {
-                    const x = padding + (i / (points.length - 1)) * chartWidth;
-                    const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
-                    
-                    ctx.beginPath();
-                    ctx.arc(x, y, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-                
-                // Draw labels
-                ctx.fillStyle = '#666';
-                ctx.font = '9px -apple-system';
-                ctx.textAlign = 'right';
-                ctx.fillText(maxValue.toFixed(1), padding - 5, padding + 5);
-                ctx.fillText(minValue.toFixed(1), padding - 5, canvas.height - padding + 5);
-                
-                // Draw last value (larger)
-                const lastValue = values[values.length - 1];
-                ctx.fillStyle = '#2c5aa0';
-                ctx.font = 'bold 14px -apple-system';
-                ctx.textAlign = 'center';
-                ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2 + 5);
+                canvas.onmouseleave = () => {
+                    tooltip.style.display = 'none';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    animate();
+                };
                 
             } catch (error) {
                 console.error(`Error loading metric data for ${name}:`, error);
