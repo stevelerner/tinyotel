@@ -1,8 +1,8 @@
 # TinyOlly - Learn Observability by Building It
 
-A **minimal observability backend built from scratch** (~2,350 lines) to understand how logs, metrics, and traces work internally. No Grafana, no Jaeger, no Prometheus - just Flask, Redis, and Chart.js.
+A **minimal observability backend built from scratch** (~2,350 lines) to understand how logs, metrics, and traces work internally. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.
 
-Includes two auto-instrumented Flask microservices demonstrating distributed tracing with OpenTelemetry.
+Includes two Flask microservices auto instrumenated for tracing and using OpenTelemetry Python SDK to export logs and metrics to an OpenTelemetry collector. This is the most modern design for taking advantage of OpenTelemetry using easy auto-instrumentation for traces yet writing properly formatted logs and metrics using the Otel SDK.
 
 ## Quick Start
 
