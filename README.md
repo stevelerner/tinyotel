@@ -72,9 +72,17 @@ All received telemetry data will be printed to the console.
 
 ### Step 2: Generate Traffic
 
+Generate a single batch of traffic:
 ```bash
 ./02-test-traffic.sh
 ```
+
+Or generate continuous traffic (recommended for TinyOlly metrics):
+```bash
+./02-continuous-traffic.sh
+```
+
+Press Ctrl+C to stop the continuous traffic generator.
 
 ### Step 3: View Logs
 
@@ -116,11 +124,13 @@ Want to see how observability backends work under the hood? Check out **TinyOlly
 
 TinyOlly is a lightweight observability backend that:
 - Receives traces, logs, and metrics via HTTP API
-- Stores data in Redis with 10-minute TTL
+- Stores data in Redis with 10-minute TTL (auto-expiring)
 - Provides a web UI with trace waterfall visualization
 - Correlates logs with traces using trace/span IDs
-- Visualizes metrics in real-time
-- Built entirely from scratch (~1,200 lines of code)
+- Visualizes metrics with Chart.js line graphs
+- Interactive charts with hover tooltips
+- Auto-refreshes every 2 seconds
+- Built entirely from scratch (Python backend + Chart.js frontend)
 
 ### Quick Start with TinyOlly
 
@@ -128,8 +138,8 @@ TinyOlly is a lightweight observability backend that:
 # Start TinyOlly with the full stack
 ./07-start-tinyolly.sh
 
-# Generate traffic
-./02-test-traffic.sh
+# Generate CONTINUOUS traffic (keep running in separate terminal)
+./02-continuous-traffic.sh
 
 # Open TinyOlly UI in browser
 open http://localhost:5002
@@ -138,13 +148,31 @@ open http://localhost:5002
 ./08-stop-tinyolly.sh
 ```
 
+**Important**: Use `./02-continuous-traffic.sh` to keep generating data for the metrics charts to update properly.
+
 ### Features
 
-- **Trace Waterfall View**: Visual timeline showing span execution
-- **Log Correlation**: Click on a trace to see all related logs
-- **Metrics Charts**: Real-time visualization of custom metrics
-- **Auto-Refresh**: Updates every 5 seconds
-- **Light Theme**: Clean and professional interface
+- **Trace Waterfall View**: Visual timeline showing span execution with durations
+- **Log Correlation**: Click on trace ID in logs to jump to trace detail view
+- **Metrics Charts**: Real-time line charts using Chart.js with smooth animations
+- **Interactive Charts**: Hover over data points to see exact values and timestamps
+- **JSON Inspection**: View full JSON of traces and logs with toggle buttons
+- **Auto-Refresh**: Updates every 2 seconds with new data
+- **Light Theme**: Clean, compact interface with small fonts for information density
+
+### Metrics Available
+
+TinyOlly displays live charts for:
+- **http.response.time** - Request response times (50-200ms)
+- **app.active.connections** - Active connections (10-50)
+- **app.cpu.usage** - CPU usage percentage (20-80%)
+- **app.memory.usage** - Memory usage in MB (100-500)
+- **app.error.rate** - Error rate (0.5-5.0)
+- **app.calculations.total** - Calculation counter
+- **app.greetings.total** - Greetings counter
+- **http.server.requests** - HTTP request counter
+
+All metrics update in real-time as traffic flows through the system.
 
 ### Learn How It Works
 
@@ -153,6 +181,7 @@ Read the [TinyOlly README](TINYOLLY-README.md) to understand:
 - How trace correlation works with trace/span IDs
 - How to build waterfall visualizations
 - How to implement in-memory storage with TTL
+- How Chart.js is integrated for real-time visualization
 
-**TinyOlly proves that observability isn't magic - it's just good software engineering!**
+TinyOlly proves that observability isn't magic - it's just good software engineering!
 

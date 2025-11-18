@@ -527,9 +527,9 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('traces')">Traces</button>
-            <button class="tab" onclick="switchTab('logs')">Logs</button>
-            <button class="tab" onclick="switchTab('metrics')">Metrics</button>
+            <button class="tab active" data-tab="traces" onclick="switchTab('traces', this)">Traces</button>
+            <button class="tab" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
+            <button class="tab" data-tab="metrics" onclick="switchTab('metrics', this)">Metrics</button>
         </div>
 
         <!-- Traces Tab -->
@@ -597,14 +597,14 @@
             }, 2000); // Refresh every 2 seconds
         }
 
-        function switchTab(tab) {
+        function switchTab(tab, element) {
             currentTab = tab;
             
-            // Update tab buttons
+            // Update tab buttons - remove active from all, add to clicked
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            element.classList.add('active');
             
-            // Update tab content
+            // Update tab content - hide all, show selected
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(tab + '-tab').classList.add('active');
             
@@ -854,8 +854,12 @@
         function showTraceFromLog(traceId) {
             // Switch to traces tab
             currentTab = 'traces';
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab')[0].classList.add('active');
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.getAttribute('data-tab') === 'traces') {
+                    t.classList.add('active');
+                }
+            });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('traces-tab').classList.add('active');
             
