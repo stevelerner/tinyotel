@@ -44,7 +44,7 @@ services:
 
   app:
     build: .
-    container_name: tinyotel-app
+    container_name: tinyolly-app
     ports:
       - "5001:5000"
     depends_on:

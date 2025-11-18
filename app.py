@@ -99,7 +99,7 @@ def home():
     log_with_trace('info', "Home endpoint called")
     
     return jsonify({
-        "message": "TinyOTel Demo App",
+        "message": "TinyOlly Demo App",
         "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"]
     })
 

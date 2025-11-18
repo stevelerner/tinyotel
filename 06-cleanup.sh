@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Stopping TinyOTel containers..."
+echo "Stopping TinyOlly containers..."
 docker-compose down
 
 echo ""

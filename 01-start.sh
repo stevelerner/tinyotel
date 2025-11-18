@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Starting TinyOTel OpenTelemetry Collector..."
+echo "Starting TinyOlly OpenTelemetry Collector..."
 docker-compose up -d
 
 echo ""

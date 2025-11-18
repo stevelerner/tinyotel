@@ -2,7 +2,7 @@
 
 A **minimal observability backend built from scratch** (~2,350 lines) to understand how logs, metrics, and traces work internally. No Grafana, no Jaeger, no Prometheus - just Flask, Redis, and Chart.js.
 
-Includes **TinyOTel** - two auto-instrumented Flask microservices demonstrating distributed tracing with OpenTelemetry.
+Includes two auto-instrumented Flask microservices demonstrating distributed tracing with OpenTelemetry.
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ Frontend Service  ←→  Backend Service (distributed tracing)
 - Apps only speak OTLP - they don't know TinyOlly exists
 - Standard observability pipeline architecture
 
-**Demo Apps (TinyOTel):**
+**Demo Endpoints:**
 - `/process-order` - Complex multi-service flow (inventory, pricing, payment)
 - `/hello`, `/calculate`, `/error` - Simple endpoints
 - All endpoints generate logs, metrics, and traces
@@ -96,7 +96,7 @@ No heavy frameworks - just Flask, Redis, Chart.js, and clear, commented code.
 
 ## Advanced: Console Viewing
 
-Want to see raw telemetry in the terminal? Use the basic TinyOTel stack:
+Want to see raw telemetry in the terminal? Use console mode:
 
 ```bash
 # Start collector with console output
@@ -118,9 +118,7 @@ This mode uses the OpenTelemetry Collector's debug exporter to print telemetry t
 
 ## Why "Tiny"?
 
-**TinyOlly** = Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts.
-
-**TinyOTel** = Just enough OpenTelemetry to show automatic instrumentation and distributed tracing.
+Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts with automatic instrumentation and distributed tracing.
 
 Perfect for:
 - Learning how observability systems work internally
