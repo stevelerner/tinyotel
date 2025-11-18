@@ -577,8 +577,13 @@
         let currentTraceId = null;
         let currentTraceData = null;
         let autoRefreshInterval = null;
-        let expandedLogs = new Set();
+        let expandedLogs = new Set(); // Track which logs have JSON expanded
         let traceJsonOpen = false; // Track if trace JSON view is open
+        
+        // Generate stable ID for a log entry
+        function getLogStableId(log) {
+            return `${log.timestamp}-${log.message}`.substring(0, 50);
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -588,13 +593,11 @@
         });
 
         function startAutoRefresh() {
-            // Fast refresh for metrics, normal for others
+            // Auto-refresh for metrics and traces only (logs are manual refresh only)
             autoRefreshInterval = setInterval(() => {
                 loadStats();
                 if (currentTab === 'metrics') {
                     loadMetrics(); // Refresh metrics every 2 seconds
-                } else if (currentTab === 'logs') {
-                    loadLogs(); // Refresh logs
                 } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
                     loadTraces(); // Only refresh trace list if not viewing detail
                 }
@@ -802,11 +805,15 @@
                 }
                 
                 container.innerHTML = logs.map((log, idx) => {
-                    const logId = `log-${idx}`;
+                    const stableId = getLogStableId(log);
+                    const logId = `log-${idx}-${stableId.replace(/[^a-zA-Z0-9]/g, '')}`;
                     const timestamp = new Date(log.timestamp * 1000).toISOString();
                     const severity = log.severity || 'INFO';
                     const traceId = log.trace_id || log.traceId || '';
                     const message = log.message || '';
+                    
+                    // Check if this log's JSON should be expanded
+                    const isExpanded = expandedLogs.has(stableId);
                     
                     // Remove leading zeros but keep at least one digit
                     const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
@@ -817,10 +824,10 @@
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
                                 ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
+                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view json</span>
                             </div>
                             <div class="log-message">${message}</div>
-                            <div id="${logId}" class="json-view" style="display: none;">
+                            <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
                                 <pre>${JSON.stringify(log, null, 2)}</pre>
                             </div>
                         </div>
@@ -832,12 +839,14 @@
             }
         }
 
-        function toggleLogJSON(logId) {
+        function toggleLogJSON(logId, stableId) {
             const jsonView = document.getElementById(logId);
             if (jsonView.style.display === 'none') {
                 jsonView.style.display = 'block';
+                expandedLogs.add(stableId);
             } else {
                 jsonView.style.display = 'none';
+                expandedLogs.delete(stableId);
             }
         }
 
