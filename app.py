@@ -1,24 +1,29 @@
-import logging
+import json
 import random
 import time
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, jsonify
 from opentelemetry import trace
 
 app = Flask(__name__)
 
 def log_with_trace(level, message):
-    """Helper to log with trace context"""
+    """Helper to log with trace context in structured JSON format"""
     span = trace.get_current_span()
     ctx = span.get_span_context()
     trace_id = format(ctx.trace_id, '032x') if ctx.trace_id != 0 else 'no_trace'
     span_id = format(ctx.span_id, '016x') if ctx.span_id != 0 else 'no_span'
     
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_message = f"{timestamp} - {level.upper()} - [trace_id={trace_id} span_id={span_id}] {message}"
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "severity": level.upper(),
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "message": message
+    }
     
-    print(log_message, file=sys.stderr, flush=True)
+    print(json.dumps(log_entry), file=sys.stderr, flush=True)
 
 @app.route('/')
 def home():

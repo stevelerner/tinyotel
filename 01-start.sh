@@ -6,6 +6,7 @@ docker-compose up -d
 echo ""
 echo "OpenTelemetry Collector is running!"
 echo ""
-echo "View logs with: docker-compose logs -f"
-echo "Stop with: ./cleanup.sh"
+echo "Generate traffic with: ./02-test-traffic.sh"
+echo "View logs with: ./03-logs.sh"
+echo "Stop with: ./06-cleanup.sh"
 

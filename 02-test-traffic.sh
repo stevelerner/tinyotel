@@ -26,5 +26,5 @@ for i in {1..5}; do
 done
 
 echo ""
-echo "Traffic generation complete. Check logs with: docker-compose logs -f app"
+echo "Traffic generation complete. Check logs with: ./04-logs-app.sh"
 

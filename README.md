@@ -16,7 +16,7 @@ The collector is configured with:
 A simple Flask application that:
 - Uses OpenTelemetry auto-instrumentation
 - Generates traces automatically for each HTTP request
-- Logs with trace/span IDs embedded
+- Outputs structured JSON logs with trace/span IDs
 - Exports traces to the OTEL collector
 
 Endpoints (available at http://localhost:5001):
@@ -26,45 +26,60 @@ Endpoints (available at http://localhost:5001):
 - `GET /error` - Simulates errors for testing
 
 Each request generates:
-- Automatic traces sent to the collector
-- Logs with embedded trace_id and span_id for correlation
+- Automatic traces sent to the collector via OTLP
+- Structured JSON logs with fields:
+  - `timestamp` (ISO 8601 format with timezone)
+  - `severity` (INFO, WARNING, ERROR)
+  - `trace_id` (32-character hex string)
+  - `span_id` (16-character hex string)
+  - `message` (log message)
+
+Example log entry:
+```json
+{
+  "timestamp": "2025-11-18T00:43:20.464249+00:00",
+  "severity": "INFO",
+  "trace_id": "50e7ab1f21f1e3dc9efe17258e598ed5",
+  "span_id": "c45f8211b38a2b99",
+  "message": "Greeting user: Charlie"
+}
+```
 
 ### Quick Start
 
 ```bash
-./start.sh
+./01-start.sh
 ```
 
 The collector will start and listen for OTLP data on ports 4317 (gRPC) and 4318 (HTTP).
 All received telemetry data will be printed to the console.
 
-### View Logs
-
-```bash
-docker-compose logs -f
-```
-
 ### Generate Traffic
 
 ```bash
-./test-traffic.sh
+./02-test-traffic.sh
 ```
 
-### View App Logs (with trace IDs)
+### View Logs
 
+View all logs:
 ```bash
-docker-compose logs -f app
+./03-logs.sh
 ```
 
-### View Collector Output (traces)
-
+View app logs with structured JSON and trace IDs:
 ```bash
-docker-compose logs -f otel-collector
+./04-logs-app.sh
+```
+
+View collector output with traces:
+```bash
+./05-logs-collector.sh
 ```
 
 ### Cleanup
 
 ```bash
-./cleanup.sh
+./06-cleanup.sh
 ```
 
