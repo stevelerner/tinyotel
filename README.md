@@ -115,7 +115,7 @@ TinyOlly is a minimal observability backend that demonstrates:
 - How to display real-time metrics charts
 - How in-memory storage with TTL works
 
-**Built from scratch** in ~1,400 lines of code to be readable and educational.
+**Built from scratch** in ~1,840 lines of code to be readable and educational.
 
 ### Architecture
 
@@ -131,10 +131,10 @@ App (TinyOTel)
 ```
 
 **Components:**
-- **TinyOlly OTLP Receiver**: Python Flask service that receives OTLP telemetry from the collector and stores it in Redis (~200 lines)
+- **TinyOlly OTLP Receiver**: Python Flask service that receives OTLP telemetry from the collector and stores it in Redis (~240 lines)
 - **TinyOlly Frontend**: Python Flask API serving the web UI (~330 lines)
 - **Storage**: Redis with 10-minute TTL for all telemetry data
-- **UI**: Single HTML file with Chart.js for visualization (~800 lines)
+- **UI**: Single HTML file with Chart.js for visualization (~1,270 lines)
 
 **Key Design:**
 - The instrumented app only speaks standard OTLP - it has no knowledge of TinyOlly
@@ -180,9 +180,18 @@ Or navigate to http://localhost:5002 in your browser.
 
 **Logs, Metrics & Traces - The Three Pillars:**
 
-- **Logs Tab**: View structured logs with trace correlation links
-- **Metrics Tab**: Live charts showing app performance in real-time
+- **Logs Tab**: View structured logs with trace correlation links and individual counters
+- **Metrics Tab**: Live charts showing app performance with histogram bucket visualization
 - **Traces Tab**: Waterfall visualization showing span timing and duration
+
+**Advanced Metrics Visualization:**
+- **Counter & Gauge Metrics**: Real-time line charts with rolling 30-point window
+- **Histogram Metrics**: Full histogram visualization with:
+  - Min, Max, Average, and Count statistics
+  - Bucket distribution bar charts showing data spread
+  - Automatic detection and display for histogram-type metrics
+- Smooth Chart.js animations with 2-second refresh intervals
+- Interactive tooltips showing exact values on hover
 
 **Correlation & Navigation:**
 - Click trace ID in log → jump to trace detail
@@ -191,20 +200,22 @@ Or navigate to http://localhost:5002 in your browser.
 
 **Interactive Details:**
 - JSON inspection toggle for logs and traces
-- Hover tooltips on metric charts showing exact values
+- Stats counters displayed within each tab (not in global header)
 - Auto-refresh for metrics and traces (2 seconds)
 - Manual refresh for logs (click refresh button to update)
-- Clean, compact interface
+- Clean, compact light-mode interface
 
 ### Tiny Metrics in Action
 
 TinyOlly displays live charts for common application metrics:
-- Response times, active connections, error rates
-- CPU and memory usage (simulated)
-- Request counters, calculation totals
-- All updating in real-time with smooth animations
+- **Counters**: Request counts, calculation totals, greeting counts
+- **Gauges**: Active connections and server status
+- **Histograms**: Response time distributions, calculation result distributions
+  - Full histogram stats (min/max/avg/count)
+  - Bucket distribution visualization showing value ranges
+- All updating in real-time with smooth Chart.js animations
 
-Each chart shows a rolling window of the last 30 data points.
+Each chart shows a rolling window of the last 30 data points, refreshing every 2 seconds.
 
 ## Why "Tiny"?
 
@@ -214,10 +225,10 @@ Both TinyOTel and TinyOlly are intentionally minimal:
 - **TinyOlly** - Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts
 
 **Learn by reading the code:**
-- ~200 lines for the OTLP receiver (protocol parsing and storage)
+- ~240 lines for the OTLP receiver (protocol parsing, histogram buckets, and storage)
 - ~330 lines for the frontend backend (API endpoints)
-- ~800 lines of HTML/JS for the UI (visualization and interaction)
-- No heavy frameworks or abstractions
+- ~1,270 lines of HTML/JS for the UI (visualization, histogram charts, and interaction)
+- No heavy frameworks or abstractions - just Flask, Redis, and Chart.js
 - Clear, commented code showing how things work
 
 Perfect for:
