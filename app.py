@@ -3,6 +3,7 @@ import random
 import time
 import sys
 import logging
+import requests
 from datetime import datetime, timezone
 from flask import Flask, jsonify
 from opentelemetry import trace, metrics
@@ -54,8 +55,21 @@ greeting_counter = meter.create_counter(
     description="Total number of greetings by name",
     unit="1"
 )
+order_counter = meter.create_counter(
+    "app.orders.total",
+    description="Total number of orders processed",
+    unit="1"
+)
+order_value = meter.create_histogram(
+    "app.order.value",
+    description="Distribution of order values",
+    unit="USD"
+)
 
 app = Flask(__name__)
+
+# Backend service URL
+BACKEND_URL = "http://backend-service:5000"
 
 def log_with_trace(level, message):
     """Helper to log with trace context via OpenTelemetry"""
@@ -86,7 +100,7 @@ def home():
     
     return jsonify({
         "message": "TinyOTel Demo App",
-        "endpoints": ["/", "/hello", "/calculate", "/error"]
+        "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"]
     })
 
 @app.route('/hello')
@@ -135,6 +149,123 @@ def calculate():
         "b": b,
         "result": result
     })
+
+@app.route('/process-order')
+def process_order():
+    """
+    Complex endpoint showing distributed tracing across services.
+    All spans are automatically created by OpenTelemetry instrumentation!
+    """
+    request_counter.add(1, {"endpoint": "/process-order", "method": "GET"})
+    order_counter.add(1, {"status": "initiated"})
+    
+    # Generate order details
+    order_id = random.randint(1000, 9999)
+    customer_id = random.randint(100, 999)
+    item_count = random.randint(1, 5)
+    base_price = random.uniform(10.0, 100.0) * item_count
+    
+    log_with_trace('info', f"Processing order {order_id} for customer {customer_id} with {item_count} items")
+    
+    # Step 1: Validate request (local work)
+    log_with_trace('info', f"Validating order {order_id}")
+    time.sleep(random.uniform(0.02, 0.05))
+    log_with_trace('info', "Order validation successful")
+    
+    try:
+        # Step 2: Check inventory via backend service
+        # OpenTelemetry auto-instrumentation automatically creates distributed trace!
+        log_with_trace('info', f"Checking inventory for {item_count} items")
+        inventory_response = requests.post(
+            f"{BACKEND_URL}/check-inventory",
+            json={"items": item_count},
+            timeout=5
+        )
+        inventory_data = inventory_response.json()
+        in_stock = inventory_data.get('available', True)
+        
+        if not in_stock:
+            log_with_trace('warning', "Items not available")
+            order_counter.add(1, {"status": "failed"})
+            return jsonify({
+                "status": "failed",
+                "order_id": order_id,
+                "message": "Items out of stock"
+            }), 409
+        
+        log_with_trace('info', "Inventory check complete - items available")
+        
+        # Step 3: Calculate pricing via backend service
+        # Another automatic distributed trace span!
+        log_with_trace('info', "Calculating order pricing")
+        pricing_response = requests.post(
+            f"{BACKEND_URL}/calculate-price",
+            json={"items": item_count, "base_price": base_price},
+            timeout=5
+        )
+        pricing_data = pricing_response.json()
+        total_price = pricing_data.get('total', 0)
+        
+        log_with_trace('info', f"Pricing calculation complete: ${total_price:.2f}")
+        
+        # Step 4: Reserve inventory (local work)
+        log_with_trace('info', f"Reserving {item_count} items")
+        time.sleep(random.uniform(0.06, 0.1))
+        log_with_trace('info', "Inventory reserved")
+        
+        # Step 5: Process payment via backend service
+        # Final automatic distributed trace span!
+        log_with_trace('info', f"Processing payment of ${total_price:.2f}")
+        payment_response = requests.post(
+            f"{BACKEND_URL}/process-payment",
+            json={"amount": total_price},
+            timeout=5
+        )
+        
+        if payment_response.status_code == 200:
+            payment_data = payment_response.json()
+            receipt_id = payment_data.get('receipt_id')
+            
+            log_with_trace('info', f"Payment successful, receipt: {receipt_id}")
+            
+            # Step 6: Send confirmation (local work)
+            log_with_trace('info', f"Sending confirmation to customer {customer_id}")
+            time.sleep(random.uniform(0.04, 0.08))
+            log_with_trace('info', "Confirmation sent")
+            
+            order_counter.add(1, {"status": "completed"})
+            order_value.record(total_price, {"currency": "USD"})
+            
+            log_with_trace('info', f"Order {order_id} completed successfully")
+            
+            return jsonify({
+                "status": "success",
+                "order_id": order_id,
+                "customer_id": customer_id,
+                "items": item_count,
+                "total": round(total_price, 2),
+                "receipt_id": receipt_id,
+                "message": "Order processed successfully"
+            })
+        else:
+            log_with_trace('error', "Payment declined")
+            order_counter.add(1, {"status": "failed"})
+            
+            return jsonify({
+                "status": "failed",
+                "order_id": order_id,
+                "message": "Payment was declined"
+            }), 402
+            
+    except requests.exceptions.RequestException as e:
+        log_with_trace('error', f"Backend service error: {str(e)}")
+        order_counter.add(1, {"status": "failed"})
+        
+        return jsonify({
+            "status": "error",
+            "order_id": order_id,
+            "message": "Service temporarily unavailable"
+        }), 503
 
 @app.route('/error')
 def error():

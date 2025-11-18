@@ -284,6 +284,90 @@
             padding-left: 8px;
         }
 
+        .time-axis {
+            margin-top: 16px;
+            padding-top: 8px;
+            border-top: 1px solid #ddd;
+        }
+
+        .time-markers {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 70px 0 150px;
+            position: relative;
+            height: 24px;
+        }
+
+        .time-marker {
+            font-size: 9px;
+            color: #666;
+            position: absolute;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .time-marker.first {
+            transform: translateX(0);
+        }
+
+        .time-marker.last {
+            transform: translateX(-100%);
+            right: 0;
+            left: auto;
+        }
+
+        .time-marker::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            width: 1px;
+            height: 6px;
+            background: #ddd;
+        }
+
+        .span-json-container {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+
+        .span-json-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .span-json-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .span-json-close {
+            background: #e0e0e0;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .span-json-close:hover {
+            background: #d0d0d0;
+        }
+
+        .span-bar.selected {
+            box-shadow: 0 0 0 2px #ffeb3b;
+        }
+
         /* Logs View */
         .logs-controls {
             margin-bottom: 12px;
@@ -771,8 +855,13 @@
             currentTraceData = null;
         }
 
+        // Track selected span for JSON view
+        let selectedSpanIndex = null;
+
         function renderWaterfall(trace) {
             const spans = trace.spans;
+            currentTraceData = trace;
+            selectedSpanIndex = null;
             
             // Find trace bounds
             const startTimes = spans.map(s => s.startTimeUnixNano || s.start_time || 0);
@@ -780,15 +869,33 @@
             const traceStart = Math.min(...startTimes);
             const traceEnd = Math.max(...endTimes);
             const traceDuration = traceEnd - traceStart;
+            const traceDurationMs = traceDuration / 1_000_000;
             
             const container = document.getElementById('trace-detail-container');
             const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
             
+            // Create time markers (0%, 25%, 50%, 75%, 100%)
+            const timeMarkers = [0, 0.25, 0.5, 0.75, 1.0].map(fraction => {
+                const timeMs = traceDurationMs * fraction;
+                // For the first and last markers, adjust positioning to prevent overflow
+                let className = 'time-marker';
+                let positionStyle = `left: ${fraction * 100}%;`;
+                
+                if (fraction === 0) {
+                    className += ' first';
+                } else if (fraction === 1.0) {
+                    className += ' last';
+                    positionStyle = ''; // Will use right: 0 from CSS
+                }
+                
+                return `<div class="${className}" style="${positionStyle}">${timeMs.toFixed(2)}ms</div>`;
+            }).join('');
+            
             container.innerHTML = `
                 <h2>Trace: ${displayTraceId}</h2>
-                <p>${trace.span_count} spans - ${(traceDuration / 1_000_000).toFixed(2)}ms total</p>
+                <p>${trace.span_count} spans - ${traceDurationMs.toFixed(2)}ms total</p>
                 <div class="waterfall">
-                    ${spans.map(span => {
+                    ${spans.map((span, idx) => {
                         const startTime = span.startTimeUnixNano || span.start_time || 0;
                         const endTime = span.endTimeUnixNano || span.end_time || 0;
                         const duration = endTime - startTime;
@@ -802,7 +909,7 @@
                                 <div class="span-info">
                                     <div class="span-name" title="${span.name}">${span.name}</div>
                                     <div class="span-timeline">
-                                        <div class="span-bar" style="left: ${leftPercent}%; width: ${widthPercent}%;">
+                                        <div class="span-bar" data-span-index="${idx}" style="left: ${leftPercent}%; width: ${widthPercent}%;">
                                             ${duration > traceDuration * 0.1 ? (duration / 1_000_000).toFixed(2) + 'ms' : ''}
                                         </div>
                                     </div>
@@ -812,7 +919,66 @@
                         `;
                     }).join('')}
                 </div>
+                <div class="time-axis">
+                    <div class="time-markers">
+                        ${timeMarkers}
+                    </div>
+                </div>
+                <div id="span-json-container"></div>
             `;
+
+            // Add click handlers to span bars
+            container.querySelectorAll('.span-bar').forEach(bar => {
+                bar.addEventListener('click', (e) => {
+                    const spanIndex = parseInt(e.currentTarget.getAttribute('data-span-index'));
+                    showSpanJson(spanIndex);
+                });
+            });
+        }
+
+        function showSpanJson(spanIndex) {
+            if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
+            
+            const span = currentTraceData.spans[spanIndex];
+            const container = document.getElementById('span-json-container');
+            
+            // Update selected state
+            document.querySelectorAll('.span-bar').forEach((bar, idx) => {
+                if (idx === spanIndex) {
+                    bar.classList.add('selected');
+                } else {
+                    bar.classList.remove('selected');
+                }
+            });
+            
+            selectedSpanIndex = spanIndex;
+            
+            container.innerHTML = `
+                <div class="span-json-container">
+                    <div class="span-json-header">
+                        <div class="span-json-title">Span: ${span.name}</div>
+                        <button class="span-json-close" onclick="closeSpanJson()">Close</button>
+                    </div>
+                    <pre class="json-content">${JSON.stringify(span, null, 2)}</pre>
+                </div>
+            `;
+            
+            // Scroll to the JSON view
+            setTimeout(() => {
+                const jsonContainer = document.querySelector('.span-json-container');
+                if (jsonContainer) {
+                    jsonContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 50);
+        }
+
+        function closeSpanJson() {
+            const container = document.getElementById('span-json-container');
+            container.innerHTML = '';
+            document.querySelectorAll('.span-bar').forEach(bar => {
+                bar.classList.remove('selected');
+            });
+            selectedSpanIndex = null;
         }
 
         async function loadLogs() {

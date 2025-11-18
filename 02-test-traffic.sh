@@ -16,6 +16,10 @@ for i in {1..5}; do
     curl -s http://localhost:5001/calculate | jq 2>/dev/null || curl -s http://localhost:5001/calculate
     echo ""
     
+    # Call the complex order processing endpoint (best for distributed traces!)
+    curl -s http://localhost:5001/process-order | jq 2>/dev/null || curl -s http://localhost:5001/process-order
+    echo ""
+    
     # Occasionally hit the error endpoint
     if [ $((i % 3)) -eq 0 ]; then
         curl -s http://localhost:5001/error 2>/dev/null

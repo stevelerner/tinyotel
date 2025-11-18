@@ -21,10 +21,10 @@ A tiny OTEL collector configured with:
 - Pipelines: Logs, Metrics, and Traces
 - Protocol: gRPC from app, HTTP to TinyOlly
 
-### 2. Instrumented Python App
+### 2. Instrumented Python App (Frontend Service)
 
 A simple Flask application demonstrating OpenTelemetry instrumentation:
-- Auto-instrumentation for automatic tracing
+- Auto-instrumentation for automatic distributed tracing
 - Structured JSON logs with trace/span correlation
 - Custom metrics collection
 - Exports all telemetry via OTLP
@@ -33,7 +33,21 @@ Endpoints (available at http://localhost:5001):
 - `GET /` - Home page with endpoint list
 - `GET /hello` - Random greeting with simulated work
 - `GET /calculate` - Random calculation with logging
+- `GET /process-order` - **Best for traces!** Complex multi-service order processing showing distributed tracing across frontend and backend services
 - `GET /error` - Simulates errors for testing
+
+### 3. Backend Service
+
+A second Flask microservice demonstrating distributed tracing:
+- Auto-instrumented with OpenTelemetry
+- Called by the frontend service via HTTP
+- Automatically creates distributed trace spans
+- Demonstrates trace propagation across service boundaries
+
+Backend endpoints (called internally by frontend):
+- `POST /check-inventory` - Inventory availability check
+- `POST /calculate-price` - Pricing calculations with tax and discounts
+- `POST /process-payment` - Payment processing with validation
 
 Each request generates all three signals:
 - **Logs**: Structured JSON with trace/span correlation
@@ -111,11 +125,12 @@ Want to understand how observability backends work? **TinyOlly** is a tiny obser
 TinyOlly is a minimal observability backend that demonstrates:
 - How to receive and store logs, metrics, and traces
 - How trace/span correlation works with logs
-- How to build trace waterfall visualizations
-- How to display real-time metrics charts
+- How to build interactive trace waterfall visualizations with time axes
+- How to inspect individual spans with clickable UI elements
+- How to display real-time metrics charts with histogram distributions
 - How in-memory storage with TTL works
 
-**Built from scratch** in ~1,840 lines of code to be readable and educational.
+**Built from scratch** in ~2,350 lines of code to be readable and educational.
 
 ### Architecture
 
@@ -123,21 +138,29 @@ TinyOlly follows a proper observability pipeline architecture:
 
 **Data Flow:**
 ```
-App (TinyOTel) 
-  → OTel Collector (OTLP/gRPC)
-  → TinyOlly OTLP Receiver (OTLP/HTTP)
-  → Redis (in-memory storage)
-  → TinyOlly Frontend (web UI)
+Frontend Service (TinyOTel)  ←→  Backend Service
+         ↓                              ↓
+    OTel Collector  ←──────────────────┘
+         ↓
+    TinyOlly OTLP Receiver (OTLP/HTTP)
+         ↓
+    Redis (in-memory storage)
+         ↓
+    TinyOlly Frontend (web UI)
 ```
 
 **Components:**
+- **Frontend Service**: Main Flask app with auto-instrumentation (~270 lines)
+- **Backend Service**: Second Flask microservice for distributed tracing (~240 lines)
 - **TinyOlly OTLP Receiver**: Python Flask service that receives OTLP telemetry from the collector and stores it in Redis (~240 lines)
 - **TinyOlly Frontend**: Python Flask API serving the web UI (~330 lines)
 - **Storage**: Redis with 10-minute TTL for all telemetry data
 - **UI**: Single HTML file with Chart.js for visualization (~1,270 lines)
 
 **Key Design:**
-- The instrumented app only speaks standard OTLP - it has no knowledge of TinyOlly
+- Both services use automatic OpenTelemetry instrumentation only (no manual span creation)
+- HTTP calls between services automatically create distributed traces
+- The instrumented apps only speak standard OTLP - they have no knowledge of TinyOlly
 - The OTel Collector forwards telemetry to TinyOlly's OTLP receiver
 - Proper separation of concerns, realistic observability architecture
 
@@ -153,7 +176,8 @@ TinyOlly runs the complete observability stack with a web UI for visualization.
 ```
 
 This starts:
-- TinyOTel instrumented app
+- TinyOTel frontend service (main app)
+- TinyOTel backend service (demonstrates distributed tracing)
 - OpenTelemetry Collector
 - TinyOlly OTLP Receiver (receives telemetry from collector)
 - Redis (stores telemetry with 10-minute TTL)
@@ -164,6 +188,8 @@ This starts:
 ./02-continuous-traffic.sh
 ```
 Keep this running in a separate terminal to see live metric updates. Press Ctrl+C to stop.
+
+**Pro tip:** The `/process-order` endpoint generates the most interesting distributed traces, showing automatic trace propagation across the frontend and backend services with multiple nested spans!
 
 **Step 3:** Open the TinyOlly UI
 ```bash
@@ -182,7 +208,7 @@ Or navigate to http://localhost:5002 in your browser.
 
 - **Logs Tab**: View structured logs with trace correlation links and individual counters
 - **Metrics Tab**: Live charts showing app performance with histogram bucket visualization
-- **Traces Tab**: Waterfall visualization showing span timing and duration
+- **Traces Tab**: Interactive waterfall visualization with time axis, clickable spans, and duration breakdown across services (see `/process-order` traces for distributed tracing examples!)
 
 **Advanced Metrics Visualization:**
 - **Counter & Gauge Metrics**: Real-time line charts with rolling 30-point window
@@ -198,8 +224,16 @@ Or navigate to http://localhost:5002 in your browser.
 - Click "View Logs" in trace → filter logs by trace ID
 - Bidirectional navigation between logs and traces
 
+**Interactive Trace Waterfall:**
+- Time axis showing 0%, 25%, 50%, 75%, 100% markers along the trace timeline
+- Click any span bar to view full span JSON with attributes, timing, and metadata
+- Visual highlighting of selected spans with yellow outline
+- Smooth scrolling to span details on click
+- Duration displayed on bars and in separate column for easy reference
+
 **Interactive Details:**
 - JSON inspection toggle for logs and traces
+- Clickable spans in waterfall for detailed inspection
 - Stats counters displayed within each tab (not in global header)
 - Auto-refresh for metrics and traces (2 seconds)
 - Manual refresh for logs (click refresh button to update)
@@ -225,9 +259,12 @@ Both TinyOTel and TinyOlly are intentionally minimal:
 - **TinyOlly** - Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts
 
 **Learn by reading the code:**
+- ~270 lines for the frontend service (main instrumented app)
+- ~240 lines for the backend service (distributed tracing demo)
 - ~240 lines for the OTLP receiver (protocol parsing, histogram buckets, and storage)
-- ~330 lines for the frontend backend (API endpoints)
+- ~330 lines for the TinyOlly backend (API endpoints)
 - ~1,270 lines of HTML/JS for the UI (visualization, histogram charts, and interaction)
+- Total: ~2,350 lines of readable, commented code
 - No heavy frameworks or abstractions - just Flask, Redis, and Chart.js
 - Clear, commented code showing how things work
 

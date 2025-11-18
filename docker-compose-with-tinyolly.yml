@@ -30,6 +30,18 @@ services:
     depends_on:
       - tinyolly-otlp-receiver
 
+  backend-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend-service
+    ports:
+      - "5004:5000"
+    depends_on:
+      - otel-collector
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+
   app:
     build: .
     container_name: tinyotel-app
@@ -37,6 +49,7 @@ services:
       - "5001:5000"
     depends_on:
       - otel-collector
+      - backend-service
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 

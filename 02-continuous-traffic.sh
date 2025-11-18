@@ -10,7 +10,7 @@ while true; do
     echo "Batch $count:"
     
     # Randomly call different endpoints
-    case $((RANDOM % 4)) in
+    case $((RANDOM % 5)) in
         0)
             curl -s http://localhost:5001/ > /dev/null
             echo "  -> GET /"
@@ -24,6 +24,10 @@ while true; do
             echo "  -> GET /calculate"
             ;;
         3)
+            curl -s http://localhost:5001/process-order > /dev/null
+            echo "  -> GET /process-order (complex trace)"
+            ;;
+        4)
             curl -s http://localhost:5001/error > /dev/null 2>&1
             echo "  -> GET /error"
             ;;
