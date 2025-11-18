@@ -6,6 +6,8 @@ Includes two auto-instrumented Flask microservices demonstrating distributed tra
 
 ## Quick Start
 
+> **Note:** Built and tested on Docker Desktop for Mac.
+
 **1. Start the full stack:**
 ```bash
 ./07-start-tinyolly.sh
