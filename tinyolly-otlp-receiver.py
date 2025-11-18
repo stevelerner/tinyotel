@@ -33,9 +33,7 @@ def store_trace(trace_data):
                     # Convert to format compatible with TinyOlly frontend
                     span_record = {
                         'traceId': trace_id,
-                        'trace_id': trace_id,
                         'spanId': span_id,
-                        'span_id': span_id,
                         'name': span.get('name', ''),
                         'kind': span.get('kind', 0),
                         'startTimeUnixNano': span.get('startTimeUnixNano', 0),
@@ -84,9 +82,7 @@ def store_log(log_data):
                     
                     log_entry = {
                         'timestamp': timestamp,
-                        'trace_id': trace_id,
                         'traceId': trace_id,
-                        'span_id': span_id,
                         'spanId': span_id,
                         'severity': severity_text,
                         'message': message,

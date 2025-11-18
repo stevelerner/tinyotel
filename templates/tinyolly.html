@@ -559,7 +559,7 @@
             </div>
             <div id="trace-detail-view" style="display: none;">
                 <button class="back-button" onclick="showTracesList()">Back to Traces</button>
-                <button class="view-json-button" onclick="toggleTraceJSON()">View JSON</button>
+                <button class="view-json-button" onclick="toggleTraceJSON()">View Trace JSON</button>
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
                 <div id="trace-json-view" class="json-view" style="display: none;"></div>
                 <div class="trace-detail" id="trace-detail-container"></div>
@@ -824,7 +824,7 @@
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
                                 ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view json</span>
+                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view log json</span>
                             </div>
                             <div class="log-message">${message}</div>
                             <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
@@ -878,7 +878,7 @@
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
                                 ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
+                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view log json</span>
                             </div>
                             <div class="log-message">${message}</div>
                             <div id="${logId}" class="json-view" style="display: none;">
