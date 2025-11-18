@@ -1,26 +1,31 @@
-# TinyOTel - Minimal OpenTelemetry Demo
+# TinyOTel + TinyOlly
 
-A minimal OpenTelemetry demo showing metrics, traces, and logs.
+**Two tiny implementations for learning observability:**
 
-**Includes TinyOlly**: A custom observability backend built from scratch! See [TINYOLLY-README.md](TINYOLLY-README.md) for details.
+1. **TinyOTel** - A minimal OpenTelemetry demo showing how to instrument applications with logs, metrics, and traces
+2. **TinyOlly** - A tiny observability backend built from scratch to visualize and correlate telemetry data
 
-## Components
+Both are designed to be small, focused, and educational - showing how observability works without the complexity of production systems.
+
+## TinyOTel Components
+
+A minimal OpenTelemetry setup demonstrating the three pillars of observability: logs, metrics, and traces.
 
 ### 1. OpenTelemetry Collector
 
-The collector is configured with:
+A tiny OTEL collector configured with:
 - Receivers: OTLP gRPC on port 4317
 - Exporters: Debug/Console exporter with detailed verbosity
-- Pipelines: Traces, Metrics, and Logs
+- Pipelines: Logs, Metrics, and Traces
 - Protocol: gRPC (efficient binary protocol)
 
-### 2. Python Demo App
+### 2. Instrumented Python App
 
-A simple Flask application that:
-- Uses OpenTelemetry auto-instrumentation
-- Generates traces automatically for each HTTP request
-- Outputs structured JSON logs with trace/span IDs
-- Exports traces to the OTEL collector
+A simple Flask application demonstrating OpenTelemetry instrumentation:
+- Auto-instrumentation for automatic tracing
+- Structured JSON logs with trace/span correlation
+- Custom metrics collection
+- Exports all telemetry via OTLP
 
 Endpoints (available at http://localhost:5001):
 - `GET /` - Home page with endpoint list
@@ -28,27 +33,25 @@ Endpoints (available at http://localhost:5001):
 - `GET /calculate` - Random calculation with logging
 - `GET /error` - Simulates errors for testing
 
-Each request generates:
+Each request generates all three signals:
+- **Logs**: Structured JSON with trace/span correlation
+- **Metrics**: Custom counters, histograms, and gauges
 - **Traces**: Automatic distributed traces via OTLP
-- **Metrics**: Custom application metrics via OTLP
-- **Logs**: Structured JSON logs with fields:
+
+Log format:
   - `timestamp` (ISO 8601 format with timezone)
   - `severity` (INFO, WARNING, ERROR)
   - `trace_id` (32-character hex string)
   - `span_id` (16-character hex string)
   - `message` (log message)
 
-### Metrics Collected
+### TinyOTel Metrics
 
-Custom application metrics:
-- **http.server.requests** - Counter of HTTP requests by endpoint and method
-- **app.greetings.total** - Counter of greetings by name
-- **app.calculations.total** - Counter of calculations by operation type
-- **app.calculation.result** - Histogram of calculation results
-
-Auto-instrumented metrics:
-- **http.server.duration** - Histogram of HTTP request durations
-- **http.server.active_requests** - Gauge of active HTTP requests
+The instrumented app collects:
+- Request counters by endpoint
+- Calculation and greeting counters
+- Response time histograms
+- Active connection gauges
 
 Example log entry:
 ```json
@@ -61,14 +64,15 @@ Example log entry:
 }
 ```
 
-### Step 1: Quick Start
+## Using TinyOTel
+
+### Step 1: Start the Stack
 
 ```bash
 ./01-start.sh
 ```
 
-The collector will start and listen for OTLP data on port 4317 (gRPC).
-All received telemetry data will be printed to the console.
+Starts the OTEL collector and instrumented app. The collector listens on port 4317 and prints all received telemetry to console.
 
 ### Step 2: Generate Traffic
 
@@ -116,72 +120,95 @@ docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.se
 ./06-cleanup.sh
 ```
 
-## TinyOlly - Custom Observability Backend
+## TinyOlly - A Tiny Observability Backend
 
-Want to see how observability backends work under the hood? Check out **TinyOlly** - a complete observability platform built from scratch (no Grafana, no Jaeger, just Python + Redis + HTML/JS)!
+Want to understand how observability backends work? **TinyOlly** is a tiny observability platform built from scratch - no Grafana, no Jaeger, no Prometheus. Just Python, Redis, and Chart.js.
 
 ### What is TinyOlly?
 
-TinyOlly is a lightweight observability backend that:
-- Receives traces, logs, and metrics via HTTP API
-- Stores data in Redis with 10-minute TTL (auto-expiring)
-- Provides a web UI with trace waterfall visualization
-- Correlates logs with traces using trace/span IDs
-- Visualizes metrics with Chart.js line graphs
-- Interactive charts with hover tooltips
-- Auto-refreshes every 2 seconds
-- Built entirely from scratch (Python backend + Chart.js frontend)
+TinyOlly is a minimal observability backend that demonstrates:
+- How to receive and store logs, metrics, and traces
+- How trace/span correlation works with logs
+- How to build trace waterfall visualizations
+- How to display real-time metrics charts
+- How in-memory storage with TTL works
 
-### Quick Start with TinyOlly
+**Built from scratch** in ~1,200 lines of code to be readable and educational.
+
+### Architecture
+
+- **Backend**: Python Flask API (~330 lines)
+- **Storage**: Redis with 10-minute TTL
+- **Frontend**: Single HTML file with Chart.js (~800 lines)
+- **No frameworks** - just the essentials
+
+## Using TinyOlly
+
+### Quick Start
 
 ```bash
-# Start TinyOlly with the full stack
+# Start TinyOlly (includes TinyOTel app + Redis + TinyOlly backend)
 ./07-start-tinyolly.sh
 
-# Generate CONTINUOUS traffic (keep running in separate terminal)
+# Generate continuous traffic (keep running)
 ./02-continuous-traffic.sh
 
-# Open TinyOlly UI in browser
+# Open TinyOlly UI
 open http://localhost:5002
 
 # Stop everything
 ./08-stop-tinyolly.sh
 ```
 
-**Important**: Use `./02-continuous-traffic.sh` to keep generating data for the metrics charts to update properly.
+**Tip**: Keep `./02-continuous-traffic.sh` running to see live metrics charts updating in real-time.
 
-### Features
+### TinyOlly Features
 
-- **Trace Waterfall View**: Visual timeline showing span execution with durations
-- **Log Correlation**: Click on trace ID in logs to jump to trace detail view
-- **Metrics Charts**: Real-time line charts using Chart.js with smooth animations
-- **Interactive Charts**: Hover over data points to see exact values and timestamps
-- **JSON Inspection**: View full JSON of traces and logs with toggle buttons
-- **Auto-Refresh**: Updates every 2 seconds with new data
-- **Light Theme**: Clean, compact interface with small fonts for information density
+**Logs, Metrics & Traces - The Three Pillars:**
 
-### Metrics Available
+- **Logs Tab**: View structured logs with trace correlation links
+- **Metrics Tab**: Live charts showing app performance in real-time
+- **Traces Tab**: Waterfall visualization showing span timing and duration
 
-TinyOlly displays live charts for:
-- **http.response.time** - Request response times (50-200ms)
-- **app.active.connections** - Active connections (10-50)
-- **app.cpu.usage** - CPU usage percentage (20-80%)
-- **app.memory.usage** - Memory usage in MB (100-500)
-- **app.error.rate** - Error rate (0.5-5.0)
-- **app.calculations.total** - Calculation counter
-- **app.greetings.total** - Greetings counter
-- **http.server.requests** - HTTP request counter
+**Correlation & Navigation:**
+- Click trace ID in log → jump to trace detail
+- Click "View Logs" in trace → filter logs by trace ID
+- Bidirectional navigation between logs and traces
 
-All metrics update in real-time as traffic flows through the system.
+**Interactive Details:**
+- JSON inspection toggle for logs and traces
+- Hover tooltips on metric charts showing exact values
+- Auto-refresh every 2 seconds
+- Clean, compact interface
 
-### Learn How It Works
+### Tiny Metrics in Action
 
-Read the [TinyOlly README](TINYOLLY-README.md) to understand:
-- How observability backends store and query data
-- How trace correlation works with trace/span IDs
-- How to build waterfall visualizations
-- How to implement in-memory storage with TTL
-- How Chart.js is integrated for real-time visualization
+TinyOlly displays live charts for common application metrics:
+- Response times, active connections, error rates
+- CPU and memory usage (simulated)
+- Request counters, calculation totals
+- All updating in real-time with smooth animations
 
-TinyOlly proves that observability isn't magic - it's just good software engineering!
+Each chart shows a rolling window of the last 30 data points.
+
+## Why "Tiny"?
+
+Both TinyOTel and TinyOlly are intentionally minimal:
+
+- **TinyOTel** - Just enough to show OpenTelemetry basics without overwhelming complexity
+- **TinyOlly** - Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts
+
+**Learn by reading the code:**
+- ~330 lines of Python for the backend
+- ~800 lines of HTML/JS for the frontend
+- No heavy frameworks or abstractions
+- Clear, commented code showing how things work
+
+Perfect for:
+- Learning how observability systems work internally
+- Understanding trace correlation and context propagation
+- Building your own monitoring tools
+- Teaching others about observability
+
+**Read more**: See [TINYOLLY-README.md](TINYOLLY-README.md) for detailed documentation on how TinyOlly works internally.
 

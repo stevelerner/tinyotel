@@ -504,17 +504,13 @@
     <header>
         <div class="container">
             <h1>TinyOlly</h1>
-            <div class="subtitle">Minimal Observability Backend - Traces, Logs & Metrics</div>
+            <div class="subtitle">Minimal Observability Backend - Logs, Metrics & Traces</div>
         </div>
     </header>
 
     <div class="container">
         <!-- Stats Cards -->
         <div class="stats">
-            <div class="stat-card">
-                <h3>Traces</h3>
-                <div class="value" id="stat-traces">-</div>
-            </div>
             <div class="stat-card">
                 <h3>Logs</h3>
                 <div class="value" id="stat-logs">-</div>
@@ -523,34 +519,21 @@
                 <h3>Metrics</h3>
                 <div class="value" id="stat-metrics">-</div>
             </div>
+            <div class="stat-card">
+                <h3>Traces</h3>
+                <div class="value" id="stat-traces">-</div>
+            </div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" data-tab="traces" onclick="switchTab('traces', this)">Traces</button>
-            <button class="tab" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
+            <button class="tab active" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
             <button class="tab" data-tab="metrics" onclick="switchTab('metrics', this)">Metrics</button>
-        </div>
-
-        <!-- Traces Tab -->
-        <div id="traces-tab" class="tab-content active">
-            <div id="traces-list-view">
-                <div class="trace-list" id="traces-container">
-                    <div class="loading">Loading traces...</div>
-                </div>
-            </div>
-            <div id="trace-detail-view" style="display: none;">
-                <button class="back-button" onclick="showTracesList()">Back to Traces</button>
-                <button class="view-json-button" onclick="toggleTraceJSON()">View JSON</button>
-                <div id="trace-json-view" class="json-view" style="display: none;"></div>
-                <div class="trace-detail" id="trace-detail-container"></div>
-                <h3>Correlated Logs</h3>
-                <div class="log-list" id="trace-logs-container"></div>
-            </div>
+            <button class="tab" data-tab="traces" onclick="switchTab('traces', this)">Traces</button>
         </div>
 
         <!-- Logs Tab -->
-        <div id="logs-tab" class="tab-content">
+        <div id="logs-tab" class="tab-content active">
             <div class="logs-controls">
                 <input type="text" id="trace-id-filter" placeholder="Filter by trace ID (optional)">
                 <button onclick="loadLogs()">Filter</button>
@@ -566,22 +549,41 @@
                 <div class="loading">Loading metrics...</div>
             </div>
         </div>
+
+        <!-- Traces Tab -->
+        <div id="traces-tab" class="tab-content">
+            <div id="traces-list-view">
+                <div class="trace-list" id="traces-container">
+                    <div class="loading">Loading traces...</div>
+                </div>
+            </div>
+            <div id="trace-detail-view" style="display: none;">
+                <button class="back-button" onclick="showTracesList()">Back to Traces</button>
+                <button class="view-json-button" onclick="toggleTraceJSON()">View JSON</button>
+                <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
+                <div id="trace-json-view" class="json-view" style="display: none;"></div>
+                <div class="trace-detail" id="trace-detail-container"></div>
+                <h3>Correlated Logs</h3>
+                <div class="log-list" id="trace-logs-container"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Refresh Button -->
     <button class="refresh-button" onclick="refreshCurrentTab()" title="Refresh">↻</button>
 
     <script>
-        let currentTab = 'traces';
+        let currentTab = 'logs';
         let currentTraceId = null;
         let currentTraceData = null;
         let autoRefreshInterval = null;
         let expandedLogs = new Set();
+        let traceJsonOpen = false; // Track if trace JSON view is open
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadStats();
-            loadTraces();
+            loadLogs();
             startAutoRefresh();
         });
 
@@ -591,8 +593,10 @@
                 loadStats();
                 if (currentTab === 'metrics') {
                     loadMetrics(); // Refresh metrics every 2 seconds
-                } else {
-                    refreshCurrentTab();
+                } else if (currentTab === 'logs') {
+                    loadLogs(); // Refresh logs
+                } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
+                    loadTraces(); // Only refresh trace list if not viewing detail
                 }
             }, 2000); // Refresh every 2 seconds
         }
@@ -680,8 +684,15 @@
                 document.getElementById('traces-list-view').style.display = 'none';
                 document.getElementById('trace-detail-view').style.display = 'block';
                 
-                // Hide JSON view initially
-                document.getElementById('trace-json-view').style.display = 'none';
+                // Keep JSON view state if it was open, otherwise hide it
+                const jsonView = document.getElementById('trace-json-view');
+                if (traceJsonOpen && currentTraceData) {
+                    jsonView.style.display = 'block';
+                    jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
+                } else {
+                    jsonView.style.display = 'none';
+                    traceJsonOpen = false;
+                }
                 
                 // Render waterfall
                 renderWaterfall(trace);
@@ -698,9 +709,30 @@
             if (jsonView.style.display === 'none') {
                 jsonView.style.display = 'block';
                 jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
+                traceJsonOpen = true;
             } else {
                 jsonView.style.display = 'none';
+                traceJsonOpen = false;
             }
+        }
+
+        function showLogsForTrace() {
+            if (!currentTraceId) return;
+            
+            // Switch to logs tab
+            currentTab = 'logs';
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.getAttribute('data-tab') === 'logs') {
+                    t.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('logs-tab').classList.add('active');
+            
+            // Set filter and load logs
+            document.getElementById('trace-id-filter').value = currentTraceId;
+            loadLogs();
         }
 
         function showTracesList() {
@@ -852,6 +884,9 @@
         }
 
         function showTraceFromLog(traceId) {
+            // Reset trace JSON state when navigating from log
+            traceJsonOpen = false;
+            
             // Switch to traces tab
             currentTab = 'traces';
             document.querySelectorAll('.tab').forEach(t => {
