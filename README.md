@@ -72,6 +72,7 @@ Frontend Service  ←→  Backend Service (distributed tracing)
 - HTTP calls between services automatically create distributed traces
 - Apps only speak OTLP - they don't know TinyOlly exists
 - Standard observability pipeline architecture
+- **Add any container that emits OpenTelemetry and TinyOlly will display its telemetry**
 
 **Demo Endpoints:**
 - `/process-order` - Complex multi-service flow (inventory, pricing, payment)
