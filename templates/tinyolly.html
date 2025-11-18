@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TinyOlly - Observability Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -437,18 +438,6 @@
             cursor: crosshair;
         }
 
-        .metric-tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 9px;
-            pointer-events: none;
-            white-space: nowrap;
-            z-index: 1000;
-            display: none;
-        }
 
         .metric-value {
             font-size: 16px;
@@ -874,6 +863,9 @@
             setTimeout(() => showTraceDetail(traceId), 100);
         }
 
+        let currentMetricNames = [];
+        let metricCharts = {}; // Store Chart.js instances
+
         async function loadMetrics() {
             try {
                 const response = await fetch('/api/metrics');
@@ -883,200 +875,147 @@
                 
                 if (metricNames.length === 0) {
                     container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
+                    currentMetricNames = [];
                     return;
                 }
                 
-                container.innerHTML = metricNames.map(name => `
-                    <div class="metric-card">
-                        <div class="metric-name">${name}</div>
-                        <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
-                            <canvas></canvas>
-                            <div class="metric-tooltip"></div>
-                        </div>
-                    </div>
-                `).join('');
+                // Check if metric list has changed
+                const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
                 
-                // Load data for each metric
+                if (metricsChanged) {
+                    // Destroy old charts
+                    Object.values(metricCharts).forEach(chart => chart.destroy());
+                    metricCharts = {};
+                    
+                    console.log('Metrics list changed, recreating DOM');
+                    currentMetricNames = metricNames;
+                    container.innerHTML = metricNames.map(name => `
+                        <div class="metric-card">
+                            <div class="metric-name">${name}</div>
+                            <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
+                                <canvas></canvas>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Initialize charts
+                    for (const name of metricNames) {
+                        initMetricChart(name);
+                    }
+                }
+                
+                // Update data for each metric
                 for (const name of metricNames) {
-                    loadMetricData(name);
+                    updateMetricData(name);
                 }
             } catch (error) {
                 console.error('Error loading metrics:', error);
-                document.getElementById('metrics-container').innerHTML = '<div class="empty">Error loading metrics</div>';
+                container.innerHTML = '<div class="empty">Error loading metrics</div>';
+                currentMetricNames = [];
             }
         }
 
-        // Store previous metric data for animation
-        let metricDataCache = {};
+        const MAX_POINTS = 30;
+        let lastTimestamps = {}; // Track last timestamp for each metric
 
-        async function loadMetricData(name) {
+        function initMetricChart(name) {
+            const chartId = `metric-${name.replace(/\./g, '-')}`;
+            const canvas = document.querySelector(`#${chartId} canvas`);
+            if (!canvas) return;
+            
+            lastTimestamps[name] = null; // Initialize timestamp tracking
+            
+            const ctx = canvas.getContext('2d');
+            metricCharts[name] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: name,
+                        data: [],
+                        borderColor: '#2c5aa0',
+                        backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 750,
+                        easing: 'easeInOutQuad'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Value: ' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                font: {
+                                    size: 9
+                                },
+                                color: '#666'
+                            },
+                            grid: {
+                                color: '#e0e0e0'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateMetricData(name) {
             try {
                 const response = await fetch(`/api/metrics/${name}`);
                 const data = await response.json();
                 
-                if (data.data.length === 0) return;
+                if (data.data.length === 0 || !metricCharts[name]) return;
                 
-                const chartId = `metric-${name.replace(/\./g, '-')}`;
-                const chartContainer = document.querySelector(`#${chartId}`);
-                const canvas = chartContainer?.querySelector('canvas');
-                const tooltip = chartContainer?.querySelector('.metric-tooltip');
-                if (!canvas) return;
+                const chart = metricCharts[name];
+                const latestPoint = data.data[data.data.length - 1];
                 
-                const ctx = canvas.getContext('2d');
-                const points = data.data;
-                
-                // Store previous data
-                const previousData = metricDataCache[name] || points;
-                metricDataCache[name] = points;
-                
-                // Set canvas size
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
-                
-                const values = points.map(p => p.value);
-                const maxValue = Math.max(...values);
-                const minValue = Math.min(...values);
-                const range = maxValue - minValue || 1;
-                
-                const padding = 20;
-                const chartWidth = canvas.width - padding * 2;
-                const chartHeight = canvas.height - padding * 2;
-                
-                // Animation frame counter
-                let animationProgress = 0;
-                const animationDuration = 500; // ms
-                const startTime = Date.now();
-                
-                function animate() {
-                    const elapsed = Date.now() - startTime;
-                    animationProgress = Math.min(elapsed / animationDuration, 1);
-                    
-                    // Easing function (ease-out)
-                    const eased = 1 - Math.pow(1 - animationProgress, 3);
-                    
-                    // Clear canvas
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Draw grid lines
-                    ctx.strokeStyle = '#e0e0e0';
-                    ctx.lineWidth = 1;
-                    for (let i = 0; i <= 4; i++) {
-                        const y = padding + (i * chartHeight / 4);
-                        ctx.beginPath();
-                        ctx.moveTo(padding, y);
-                        ctx.lineTo(canvas.width - padding, y);
-                        ctx.stroke();
-                    }
-                    
-                    // Draw line with animation
-                    ctx.strokeStyle = '#2c5aa0';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    
-                    const pointCoords = [];
-                    points.forEach((point, i) => {
-                        // Interpolate between old and new values
-                        let displayValue = point.value;
-                        if (previousData[i]) {
-                            displayValue = previousData[i].value + (point.value - previousData[i].value) * eased;
-                        }
-                        
-                        const x = padding + (i / (points.length - 1)) * chartWidth;
-                        const y = padding + chartHeight - ((displayValue - minValue) / range) * chartHeight;
-                        
-                        pointCoords.push({ x, y, value: point.value, timestamp: point.timestamp });
-                        
-                        if (i === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    });
-                    
-                    ctx.stroke();
-                    
-                    // Draw points
-                    ctx.fillStyle = '#2c5aa0';
-                    pointCoords.forEach(coord => {
-                        ctx.beginPath();
-                        ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                    
-                    // Draw labels
-                    ctx.fillStyle = '#666';
-                    ctx.font = '9px -apple-system';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(maxValue.toFixed(1), padding - 5, padding + 5);
-                    ctx.fillText(minValue.toFixed(1), padding - 5, canvas.height - padding + 5);
-                    
-                    // Draw last value (larger) with fade-in
-                    const lastValue = values[values.length - 1];
-                    ctx.globalAlpha = eased;
-                    ctx.fillStyle = '#2c5aa0';
-                    ctx.font = 'bold 14px -apple-system';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2 + 5);
-                    ctx.globalAlpha = 1;
-                    
-                    // Continue animation if not complete
-                    if (animationProgress < 1) {
-                        requestAnimationFrame(animate);
-                    }
+                // Only add if this is a new timestamp
+                if (lastTimestamps[name] === latestPoint.timestamp) {
+                    return; // Same data point, skip
                 }
                 
-                animate();
+                lastTimestamps[name] = latestPoint.timestamp;
                 
-                // Add hover interactivity
-                canvas.onmousemove = (e) => {
-                    const rect = canvas.getBoundingClientRect();
-                    const mouseX = e.clientX - rect.left;
-                    const mouseY = e.clientY - rect.top;
-                    
-                    // Find nearest point
-                    let nearestPoint = null;
-                    let nearestDistance = Infinity;
-                    
-                    points.forEach((point, i) => {
-                        const x = padding + (i / (points.length - 1)) * chartWidth;
-                        const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
-                        const distance = Math.sqrt(Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2));
-                        
-                        if (distance < nearestDistance && distance < 20) {
-                            nearestDistance = distance;
-                            nearestPoint = { x, y, value: point.value, timestamp: point.timestamp };
-                        }
-                    });
-                    
-                    if (nearestPoint) {
-                        // Show tooltip
-                        const date = new Date(nearestPoint.timestamp * 1000);
-                        const timeStr = date.toLocaleTimeString();
-                        tooltip.innerHTML = `${timeStr}<br>Value: ${nearestPoint.value.toFixed(2)}`;
-                        tooltip.style.display = 'block';
-                        tooltip.style.left = (nearestPoint.x + 10) + 'px';
-                        tooltip.style.top = (nearestPoint.y - 30) + 'px';
-                        
-                        // Highlight point
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        animate();
-                        ctx.fillStyle = '#ff6b6b';
-                        ctx.beginPath();
-                        ctx.arc(nearestPoint.x, nearestPoint.y, 5, 0, Math.PI * 2);
-                        ctx.fill();
-                    } else {
-                        tooltip.style.display = 'none';
-                    }
-                };
+                // Add new point
+                const timestamp = new Date(latestPoint.timestamp * 1000).toLocaleTimeString();
+                chart.data.labels.push(timestamp);
+                chart.data.datasets[0].data.push(latestPoint.value);
                 
-                canvas.onmouseleave = () => {
-                    tooltip.style.display = 'none';
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    animate();
-                };
+                console.log(`${name}: Added value ${latestPoint.value.toFixed(2)} at ${timestamp}`);
+                
+                // Keep only last MAX_POINTS
+                if (chart.data.labels.length > MAX_POINTS) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                }
+                
+                chart.update();
                 
             } catch (error) {
-                console.error(`Error loading metric data for ${name}:`, error);
+                console.error(`Error updating metric ${name}:`, error);
             }
         }
     </script>

@@ -84,12 +84,28 @@ def home():
     request_counter.add(1, {"endpoint": "/", "method": "GET"})
     log_with_trace('info', "Home endpoint called")
     
-    # Send metrics to TinyOlly
+    # Send varying metrics to TinyOlly
     send_to_tinyolly('/v1/metrics', {
         "name": "http.server.requests",
         "timestamp": time.time(),
-        "value": 1,
+        "value": random.randint(1, 10),
         "labels": {"endpoint": "/", "method": "GET"}
+    })
+    
+    # Send response time metric (random 50-200ms)
+    send_to_tinyolly('/v1/metrics', {
+        "name": "http.response.time",
+        "timestamp": time.time(),
+        "value": random.uniform(50, 200),
+        "labels": {"endpoint": "/"}
+    })
+    
+    # Send active connections metric (random 10-50)
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.active.connections",
+        "timestamp": time.time(),
+        "value": random.randint(10, 50),
+        "labels": {}
     })
     
     # Send trace to TinyOlly
@@ -128,8 +144,16 @@ def hello():
     send_to_tinyolly('/v1/metrics', {
         "name": "app.greetings.total",
         "timestamp": time.time(),
-        "value": 1,
+        "value": random.randint(1, 5),
         "labels": {"name": name}
+    })
+    
+    # Send response time for this request
+    send_to_tinyolly('/v1/metrics', {
+        "name": "http.response.time",
+        "timestamp": time.time(),
+        "value": work_duration * 1000,  # Convert to ms
+        "labels": {"endpoint": "/hello"}
     })
     
     # Send trace to TinyOlly
@@ -173,7 +197,7 @@ def calculate():
     send_to_tinyolly('/v1/metrics', {
         "name": "app.calculations.total",
         "timestamp": time.time(),
-        "value": 1,
+        "value": random.randint(1, 8),
         "labels": {"operation": "addition"}
     })
     send_to_tinyolly('/v1/metrics', {
@@ -181,6 +205,22 @@ def calculate():
         "timestamp": time.time(),
         "value": result,
         "labels": {"operation": "addition"}
+    })
+    
+    # Send response time for calculation
+    send_to_tinyolly('/v1/metrics', {
+        "name": "http.response.time",
+        "timestamp": time.time(),
+        "value": calc_duration * 1000,  # Convert to ms
+        "labels": {"endpoint": "/calculate"}
+    })
+    
+    # Send CPU usage simulation (random 20-80%)
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.cpu.usage",
+        "timestamp": time.time(),
+        "value": random.uniform(20, 80),
+        "labels": {}
     })
     
     # Send trace to TinyOlly
@@ -212,8 +252,24 @@ def error():
     send_to_tinyolly('/v1/metrics', {
         "name": "http.server.requests",
         "timestamp": time.time(),
-        "value": 1,
+        "value": random.randint(1, 3),
         "labels": {"endpoint": "/error", "method": "GET", "status": "error"}
+    })
+    
+    # Send error rate metric
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.error.rate",
+        "timestamp": time.time(),
+        "value": random.uniform(0.5, 5.0),
+        "labels": {}
+    })
+    
+    # Send memory usage simulation (random 100-500MB)
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.memory.usage",
+        "timestamp": time.time(),
+        "value": random.uniform(100, 500),
+        "labels": {}
     })
     
     # Send trace to TinyOlly
