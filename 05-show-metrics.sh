@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Viewing metrics from collector (updates every ~5 seconds)..."
+echo "Viewing metrics from collector (updates every ~2 seconds)..."
 echo "Press Ctrl+C to stop"
 echo ""
 

@@ -7,11 +7,11 @@ from flask import Flask, jsonify
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 # Setup metrics
-metric_exporter = OTLPMetricExporter(endpoint="http://otel-collector:4318/v1/metrics")
-metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=5000)
+metric_exporter = OTLPMetricExporter(endpoint="http://otel-collector:4317")
+metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=2000)
 meter_provider = MeterProvider(metric_readers=[metric_reader])
 metrics.set_meter_provider(meter_provider)
 

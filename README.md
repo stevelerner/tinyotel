@@ -7,9 +7,10 @@ A minimal OpenTelemetry demo showing metrics, traces, and logs.
 ### 1. OpenTelemetry Collector
 
 The collector is configured with:
-- Receivers: OTLP (gRPC on port 4317, HTTP on port 4318)
+- Receivers: OTLP gRPC on port 4317
 - Exporters: Debug/Console exporter with detailed verbosity
 - Pipelines: Traces, Metrics, and Logs
+- Protocol: gRPC (efficient binary protocol)
 
 ### 2. Python Demo App
 
@@ -58,45 +59,40 @@ Example log entry:
 }
 ```
 
-### Quick Start
+### Step 1: Quick Start
 
 ```bash
 ./01-start.sh
 ```
 
-The collector will start and listen for OTLP data on ports 4317 (gRPC) and 4318 (HTTP).
+The collector will start and listen for OTLP data on port 4317 (gRPC).
 All received telemetry data will be printed to the console.
 
-### Generate Traffic
+### Step 2: Generate Traffic
 
 ```bash
 ./02-test-traffic.sh
 ```
 
-### View Logs
-
-View all logs:
-```bash
-./03-logs.sh
-```
+### Step 3: View Logs
 
 View app logs with structured JSON and trace IDs:
 ```bash
-./04-logs-app.sh
+./03-logs-app.sh
 ```
 
-View collector output with traces:
+### Step 4: View Traces
+
+View traces in the collector:
 ```bash
-./05-logs-collector.sh
+./04-show-traces.sh
 ```
 
-### View Metrics
+### Step 5: View Metrics
 
-The collector exports metrics every 5 seconds via the debug exporter.
-
-Watch metrics as they're collected:
+Watch metrics as they're collected (updates every ~2 seconds):
 ```bash
-./07-show-metrics.sh
+./05-show-metrics.sh
 ```
 
 Or view recent metrics manually:
@@ -104,9 +100,9 @@ Or view recent metrics manually:
 docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.server\.requests)"
 ```
 
-### Cleanup
+### Step 6: Cleanup
 
 ```bash
-./08-cleanup.sh
+./06-cleanup.sh
 ```
 

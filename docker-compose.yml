@@ -17,5 +17,5 @@ services:
     depends_on:
       - otel-collector
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 

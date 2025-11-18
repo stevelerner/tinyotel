@@ -26,5 +26,8 @@ for i in {1..5}; do
 done
 
 echo ""
-echo "Traffic generation complete. Check logs with: ./04-logs-app.sh"
+echo "Traffic generation complete!"
+echo "  View logs:    ./03-logs-app.sh"
+echo "  View traces:  ./04-show-traces.sh"
+echo "  View metrics: ./05-show-metrics.sh"
 
