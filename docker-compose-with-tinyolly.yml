@@ -1,4 +1,23 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: tinyolly-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  tinyolly-otlp-receiver:
+    build:
+      context: .
+      dockerfile: Dockerfile.tinyolly-otlp-receiver
+    container_name: tinyolly-otlp-receiver
+    ports:
+      - "5003:5003"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+
   otel-collector:
     image: otel/opentelemetry-collector:latest
     container_name: otel-collector
@@ -9,7 +28,7 @@ services:
       - "4317:4317"  # OTLP gRPC receiver
       - "4318:4318"  # OTLP HTTP receiver
     depends_on:
-      - tinyolly
+      - tinyolly-otlp-receiver
 
   app:
     build: .
@@ -18,17 +37,8 @@ services:
       - "5001:5000"
     depends_on:
       - otel-collector
-      - tinyolly
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - TINYOLLY_ENDPOINT=http://tinyolly:5002
-
-  redis:
-    image: redis:7-alpine
-    container_name: tinyolly-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   tinyolly:
     build:
@@ -41,16 +51,4 @@ services:
       - redis
     environment:
       - REDIS_HOST=redis
-
-  otel-to-tinyolly:
-    build:
-      context: .
-      dockerfile: Dockerfile.bridge
-    container_name: otel-to-tinyolly
-    depends_on:
-      - tinyolly
-      - app
-    environment:
-      - TINYOLLY_ENDPOINT=http://tinyolly:5002
-      - APP_ENDPOINT=http://app:5000
 

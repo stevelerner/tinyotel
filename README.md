@@ -14,10 +14,12 @@ A minimal OpenTelemetry setup demonstrating the three pillars of observability: 
 ### 1. OpenTelemetry Collector
 
 A tiny OTEL collector configured with:
-- Receivers: OTLP gRPC on port 4317
-- Exporters: Debug/Console exporter with detailed verbosity
+- Receivers: OTLP gRPC on port 4317, OTLP HTTP on port 4318
+- Exporters: 
+  - Debug/Console exporter with detailed verbosity (for viewing telemetry)
+  - OTLP HTTP exporter (forwards to TinyOlly OTLP Receiver)
 - Pipelines: Logs, Metrics, and Traces
-- Protocol: gRPC (efficient binary protocol)
+- Protocol: gRPC from app, HTTP to TinyOlly
 
 ### 2. Instrumented Python App
 
@@ -64,61 +66,41 @@ Example log entry:
 }
 ```
 
-## Using TinyOTel
+## Getting Started
 
-### Step 1: Start the Stack
+You have two options for exploring TinyOTel:
 
+### Option A: Basic TinyOTel (Console Viewing)
+
+View telemetry in the terminal using the OpenTelemetry Collector's debug exporter.
+
+**Step 1:** Start the stack
 ```bash
 ./01-start.sh
 ```
 
-Starts the OTEL collector and instrumented app. The collector listens on port 4317 and prints all received telemetry to console.
-
-### Step 2: Generate Traffic
-
-Generate a single batch of traffic:
+**Step 2:** Generate traffic
 ```bash
 ./02-test-traffic.sh
 ```
 
-Or generate continuous traffic (recommended for TinyOlly metrics):
+**Step 3:** View telemetry in console
 ```bash
-./02-continuous-traffic.sh
+./03-show-logs.sh    # View structured logs
+./04-show-traces.sh  # View distributed traces
+./05-show-metrics.sh # View metrics (refreshes every 2s)
 ```
 
-Press Ctrl+C to stop the continuous traffic generator.
-
-### Step 3: View Logs
-
-View app logs with structured JSON and trace IDs:
-```bash
-./03-show-logs.sh
-```
-
-### Step 4: View Traces
-
-View traces in the collector:
-```bash
-./04-show-traces.sh
-```
-
-### Step 5: View Metrics
-
-Watch metrics as they're collected (updates every ~2 seconds):
-```bash
-./05-show-metrics.sh
-```
-
-Or view recent metrics manually:
-```bash
-docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.server\.requests)"
-```
-
-### Step 6: Cleanup
-
+**Step 4:** Cleanup
 ```bash
 ./06-cleanup.sh
 ```
+
+### Option B: TinyOlly (Web UI with Full Observability)
+
+Use TinyOlly's web interface to visualize and correlate logs, metrics, and traces. **Recommended for the full experience!**
+
+See the [Using TinyOlly](#using-tinyolly) section below for detailed instructions.
 
 ## TinyOlly - A Tiny Observability Backend
 
@@ -133,34 +115,66 @@ TinyOlly is a minimal observability backend that demonstrates:
 - How to display real-time metrics charts
 - How in-memory storage with TTL works
 
-**Built from scratch** in ~1,200 lines of code to be readable and educational.
+**Built from scratch** in ~1,400 lines of code to be readable and educational.
 
 ### Architecture
 
-- **Backend**: Python Flask API (~330 lines)
-- **Storage**: Redis with 10-minute TTL
-- **Frontend**: Single HTML file with Chart.js (~800 lines)
-- **No frameworks** - just the essentials
+TinyOlly follows a proper observability pipeline architecture:
+
+**Data Flow:**
+```
+App (TinyOTel) 
+  → OTel Collector (OTLP/gRPC)
+  → TinyOlly OTLP Receiver (OTLP/HTTP)
+  → Redis (in-memory storage)
+  → TinyOlly Frontend (web UI)
+```
+
+**Components:**
+- **TinyOlly OTLP Receiver**: Python Flask service that receives OTLP telemetry from the collector and stores it in Redis (~200 lines)
+- **TinyOlly Frontend**: Python Flask API serving the web UI (~330 lines)
+- **Storage**: Redis with 10-minute TTL for all telemetry data
+- **UI**: Single HTML file with Chart.js for visualization (~800 lines)
+
+**Key Design:**
+- The instrumented app only speaks standard OTLP - it has no knowledge of TinyOlly
+- The OTel Collector forwards telemetry to TinyOlly's OTLP receiver
+- Proper separation of concerns, realistic observability architecture
 
 ## Using TinyOlly
 
 ### Quick Start
 
+TinyOlly runs the complete observability stack with a web UI for visualization.
+
+**Step 1:** Start TinyOlly stack
 ```bash
-# Start TinyOlly (includes TinyOTel app + Redis + TinyOlly backend)
 ./07-start-tinyolly.sh
-
-# Generate continuous traffic (keep running)
-./02-continuous-traffic.sh
-
-# Open TinyOlly UI
-open http://localhost:5002
-
-# Stop everything
-./08-stop-tinyolly.sh
 ```
 
-**Tip**: Keep `./02-continuous-traffic.sh` running to see live metrics charts updating in real-time.
+This starts:
+- TinyOTel instrumented app
+- OpenTelemetry Collector
+- TinyOlly OTLP Receiver (receives telemetry from collector)
+- Redis (stores telemetry with 10-minute TTL)
+- TinyOlly Frontend (web UI)
+
+**Step 2:** Generate continuous traffic
+```bash
+./02-continuous-traffic.sh
+```
+Keep this running in a separate terminal to see live metric updates. Press Ctrl+C to stop.
+
+**Step 3:** Open the TinyOlly UI
+```bash
+open http://localhost:5002
+```
+Or navigate to http://localhost:5002 in your browser.
+
+**Step 4:** Stop everything
+```bash
+./08-stop-tinyolly.sh
+```
 
 ### TinyOlly Features
 
@@ -178,7 +192,8 @@ open http://localhost:5002
 **Interactive Details:**
 - JSON inspection toggle for logs and traces
 - Hover tooltips on metric charts showing exact values
-- Auto-refresh every 2 seconds
+- Auto-refresh for metrics and traces (2 seconds)
+- Manual refresh for logs (click refresh button to update)
 - Clean, compact interface
 
 ### Tiny Metrics in Action
@@ -199,8 +214,9 @@ Both TinyOTel and TinyOlly are intentionally minimal:
 - **TinyOlly** - Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts
 
 **Learn by reading the code:**
-- ~330 lines of Python for the backend
-- ~800 lines of HTML/JS for the frontend
+- ~200 lines for the OTLP receiver (protocol parsing and storage)
+- ~330 lines for the frontend backend (API endpoints)
+- ~800 lines of HTML/JS for the UI (visualization and interaction)
 - No heavy frameworks or abstractions
 - Clear, commented code showing how things work
 

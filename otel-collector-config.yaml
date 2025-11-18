@@ -9,16 +9,21 @@ receivers:
 exporters:
   debug:
     verbosity: detailed
+  
+  otlphttp:
+    endpoint: http://tinyolly-otlp-receiver:5003
+    encoding: json
+    compression: none
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [debug, otlphttp]
     metrics:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [debug, otlphttp]
     logs:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [debug, otlphttp]
 

@@ -261,8 +261,8 @@ def get_trace_summary(trace_id):
     spans = [json.loads(s) for s in span_data]
     
     # Calculate trace duration
-    start_times = [s.get('startTimeUnixNano', s.get('start_time', 0)) for s in spans]
-    end_times = [s.get('endTimeUnixNano', s.get('end_time', 0)) for s in spans]
+    start_times = [int(s.get('startTimeUnixNano', s.get('start_time', 0))) for s in spans]
+    end_times = [int(s.get('endTimeUnixNano', s.get('end_time', 0))) for s in spans]
     
     min_start = min(start_times) if start_times else 0
     max_end = max(end_times) if end_times else 0

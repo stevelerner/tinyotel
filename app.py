@@ -2,20 +2,35 @@ import json
 import random
 import time
 import sys
-import os
-import requests
+import logging
 from datetime import datetime, timezone
 from flask import Flask, jsonify
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
 # Setup metrics
 metric_exporter = OTLPMetricExporter(endpoint="http://otel-collector:4317")
 metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=2000)
 meter_provider = MeterProvider(metric_readers=[metric_reader])
 metrics.set_meter_provider(meter_provider)
+
+# Setup logging
+logger_provider = LoggerProvider()
+logger_provider.add_log_record_processor(
+    BatchLogRecordProcessor(OTLPLogExporter(endpoint="http://otel-collector:4317"))
+)
+handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+
+# Configure Python logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # Create meter and metrics
 meter = metrics.get_meter(__name__)
@@ -42,18 +57,13 @@ greeting_counter = meter.create_counter(
 
 app = Flask(__name__)
 
-# TinyOlly integration
-TINYOLLY_ENDPOINT = os.getenv('TINYOLLY_ENDPOINT', 'http://tinyolly:5002')
-
-def send_to_tinyolly(endpoint, data):
-    """Send data to TinyOlly (non-blocking, best effort)"""
-    try:
-        requests.post(f"{TINYOLLY_ENDPOINT}{endpoint}", json=data, timeout=1)
-    except:
-        pass  # Fail silently, don't disrupt main app
-
 def log_with_trace(level, message):
-    """Helper to log with trace context in structured JSON format"""
+    """Helper to log with trace context via OpenTelemetry"""
+    # Log via OpenTelemetry (will include trace context automatically)
+    log_method = getattr(logger, level.lower(), logger.info)
+    log_method(message)
+    
+    # Also print to stderr for debugging
     span = trace.get_current_span()
     ctx = span.get_span_context()
     trace_id = format(ctx.trace_id, '032x') if ctx.trace_id != 0 else 'no_trace'
@@ -68,57 +78,11 @@ def log_with_trace(level, message):
     }
     
     print(json.dumps(log_entry), file=sys.stderr, flush=True)
-    
-    # Also send to TinyOlly
-    tinyolly_log = {
-        "timestamp": time.time(),
-        "severity": level.upper(),
-        "trace_id": trace_id,
-        "span_id": span_id,
-        "message": message
-    }
-    send_to_tinyolly('/v1/logs', tinyolly_log)
 
 @app.route('/')
 def home():
     request_counter.add(1, {"endpoint": "/", "method": "GET"})
     log_with_trace('info', "Home endpoint called")
-    
-    # Send varying metrics to TinyOlly
-    send_to_tinyolly('/v1/metrics', {
-        "name": "http.server.requests",
-        "timestamp": time.time(),
-        "value": random.randint(1, 10),
-        "labels": {"endpoint": "/", "method": "GET"}
-    })
-    
-    # Send response time metric (random 50-200ms)
-    send_to_tinyolly('/v1/metrics', {
-        "name": "http.response.time",
-        "timestamp": time.time(),
-        "value": random.uniform(50, 200),
-        "labels": {"endpoint": "/"}
-    })
-    
-    # Send active connections metric (random 10-50)
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.active.connections",
-        "timestamp": time.time(),
-        "value": random.randint(10, 50),
-        "labels": {}
-    })
-    
-    # Send trace to TinyOlly
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    if ctx.trace_id != 0:
-        send_to_tinyolly('/v1/traces', {
-            "traceId": format(ctx.trace_id, '032x'),
-            "spanId": format(ctx.span_id, '016x'),
-            "name": "GET /",
-            "startTimeUnixNano": int((time.time() - 0.05) * 1_000_000_000),
-            "endTimeUnixNano": int(time.time() * 1_000_000_000)
-        })
     
     return jsonify({
         "message": "TinyOTel Demo App",
@@ -139,34 +103,6 @@ def hello():
     time.sleep(work_duration)
     
     log_with_trace('info', f"Completed greeting for {name}")
-    
-    # Send metrics to TinyOlly
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.greetings.total",
-        "timestamp": time.time(),
-        "value": random.randint(1, 5),
-        "labels": {"name": name}
-    })
-    
-    # Send response time for this request
-    send_to_tinyolly('/v1/metrics', {
-        "name": "http.response.time",
-        "timestamp": time.time(),
-        "value": work_duration * 1000,  # Convert to ms
-        "labels": {"endpoint": "/hello"}
-    })
-    
-    # Send trace to TinyOlly
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    if ctx.trace_id != 0:
-        send_to_tinyolly('/v1/traces', {
-            "traceId": format(ctx.trace_id, '032x'),
-            "spanId": format(ctx.span_id, '016x'),
-            "name": f"GET /hello ({name})",
-            "startTimeUnixNano": int(start_time * 1_000_000_000),
-            "endTimeUnixNano": int(time.time() * 1_000_000_000)
-        })
     
     return jsonify({
         "message": f"Hello, {name}!",
@@ -193,48 +129,6 @@ def calculate():
     calculation_result.record(result, {"operation": "addition"})
     log_with_trace('info', f"Calculation complete: {result}")
     
-    # Send metrics to TinyOlly
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.calculations.total",
-        "timestamp": time.time(),
-        "value": random.randint(1, 8),
-        "labels": {"operation": "addition"}
-    })
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.calculation.result",
-        "timestamp": time.time(),
-        "value": result,
-        "labels": {"operation": "addition"}
-    })
-    
-    # Send response time for calculation
-    send_to_tinyolly('/v1/metrics', {
-        "name": "http.response.time",
-        "timestamp": time.time(),
-        "value": calc_duration * 1000,  # Convert to ms
-        "labels": {"endpoint": "/calculate"}
-    })
-    
-    # Send CPU usage simulation (random 20-80%)
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.cpu.usage",
-        "timestamp": time.time(),
-        "value": random.uniform(20, 80),
-        "labels": {}
-    })
-    
-    # Send trace to TinyOlly
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    if ctx.trace_id != 0:
-        send_to_tinyolly('/v1/traces', {
-            "traceId": format(ctx.trace_id, '032x'),
-            "spanId": format(ctx.span_id, '016x'),
-            "name": f"GET /calculate ({a}+{b}={result})",
-            "startTimeUnixNano": int(start_time * 1_000_000_000),
-            "endTimeUnixNano": int(time.time() * 1_000_000_000)
-        })
-    
     return jsonify({
         "operation": "addition",
         "a": a,
@@ -247,42 +141,6 @@ def error():
     start_time = time.time()
     request_counter.add(1, {"endpoint": "/error", "method": "GET", "status": "error"})
     log_with_trace('error', "Error endpoint called - simulating failure")
-    
-    # Send metrics to TinyOlly
-    send_to_tinyolly('/v1/metrics', {
-        "name": "http.server.requests",
-        "timestamp": time.time(),
-        "value": random.randint(1, 3),
-        "labels": {"endpoint": "/error", "method": "GET", "status": "error"}
-    })
-    
-    # Send error rate metric
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.error.rate",
-        "timestamp": time.time(),
-        "value": random.uniform(0.5, 5.0),
-        "labels": {}
-    })
-    
-    # Send memory usage simulation (random 100-500MB)
-    send_to_tinyolly('/v1/metrics', {
-        "name": "app.memory.usage",
-        "timestamp": time.time(),
-        "value": random.uniform(100, 500),
-        "labels": {}
-    })
-    
-    # Send trace to TinyOlly
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    if ctx.trace_id != 0:
-        send_to_tinyolly('/v1/traces', {
-            "traceId": format(ctx.trace_id, '032x'),
-            "spanId": format(ctx.span_id, '016x'),
-            "name": "GET /error (error)",
-            "startTimeUnixNano": int(start_time * 1_000_000_000),
-            "endTimeUnixNano": int(time.time() * 1_000_000_000)
-        })
     
     # Randomly decide what kind of error
     if random.random() > 0.5:
