@@ -42,16 +42,24 @@ open http://localhost:5002
 - Visual highlighting and smooth scrolling to details
 - Distributed traces across frontend and backend microservices
 
+![Trace Waterfall](images/traces.png)
+
+![Trace Details](images/tracejson.png)
+
 ### Real-Time Metrics
 - Live charts with Chart.js animations (2-second refresh)
 - Histogram metrics with min/max/avg/count and bucket distributions
 - Counters and gauges with rolling 30-point window
+
+![Metrics](images/metrics.png)
 
 ### Correlated Logs
 - Click trace ID in log → jump to trace detail
 - Click "View Logs" in trace → filter logs by trace ID
 - Bidirectional navigation between logs and traces
 - Manual refresh to avoid distractions
+
+![Logs](images/logs.png)
 
 ## Architecture
 
