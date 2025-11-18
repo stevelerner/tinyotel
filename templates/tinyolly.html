@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TinyOlly - Observability Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #161b22;
+            padding: 20px 0;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: #58a6ff;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header .subtitle {
+            color: #8b949e;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            flex: 1;
+        }
+
+        .stat-card h3 {
+            color: #8b949e;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            color: #58a6ff;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            font-size: 1em;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #c9d1d9;
+        }
+
+        .tab.active {
+            color: #58a6ff;
+            border-bottom-color: #58a6ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Traces View */
+        .trace-list {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .trace-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #30363d;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .trace-item:hover {
+            background: #1c2128;
+        }
+
+        .trace-item:last-child {
+            border-bottom: none;
+        }
+
+        .trace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .trace-name {
+            font-weight: 600;
+            color: #c9d1d9;
+            font-size: 1.1em;
+        }
+
+        .trace-duration {
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        .trace-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9em;
+            color: #8b949e;
+        }
+
+        .trace-id {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        /* Trace Detail View */
+        .trace-detail {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .back-button:hover {
+            background: #30363d;
+        }
+
+        .waterfall {
+            margin-top: 20px;
+        }
+
+        .span-row {
+            margin-bottom: 2px;
+        }
+
+        .span-info {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: #0d1117;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        .span-name {
+            flex: 0 0 200px;
+            font-size: 0.9em;
+            color: #c9d1d9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .span-timeline {
+            flex: 1;
+            height: 30px;
+            position: relative;
+            background: #161b22;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .span-bar {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, #58a6ff, #1f6feb);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 0.8em;
+            color: white;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            cursor: pointer;
+        }
+
+        .span-bar:hover {
+            opacity: 0.8;
+        }
+
+        .span-duration {
+            flex: 0 0 100px;
+            text-align: right;
+            font-size: 0.85em;
+            color: #8b949e;
+            padding-left: 10px;
+        }
+
+        /* Logs View */
+        .logs-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-controls input {
+            flex: 1;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.9em;
+        }
+
+        .logs-controls button {
+            padding: 10px 20px;
+            background: #238636;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .logs-controls button:hover {
+            background: #2ea043;
+        }
+
+        .log-list {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .log-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #30363d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-timestamp {
+            color: #8b949e;
+        }
+
+        .log-severity {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 0.8em;
+            margin: 0 10px;
+        }
+
+        .log-severity.INFO {
+            background: #1f6feb;
+            color: white;
+        }
+
+        .log-severity.WARNING {
+            background: #d29922;
+            color: white;
+        }
+
+        .log-severity.ERROR {
+            background: #da3633;
+            color: white;
+        }
+
+        .log-trace-id {
+            color: #58a6ff;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .log-message {
+            color: #c9d1d9;
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        /* Metrics View */
+        .metric-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+        }
+
+        .metric-name {
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 15px;
+        }
+
+        .metric-chart {
+            width: 100%;
+            height: 150px;
+            background: #0d1117;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            color: #58a6ff;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .refresh-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #238636;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+        }
+
+        .refresh-button:hover {
+            background: #2ea043;
+            transform: scale(1.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 60px;
+            color: #8b949e;
+        }
+
+        .empty-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔍 TinyOlly</h1>
+            <div class="subtitle">Minimal Observability Backend - Traces, Logs & Metrics</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Stats Cards -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Traces</h3>
+                <div class="value" id="stat-traces">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Logs</h3>
+                <div class="value" id="stat-logs">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Metrics</h3>
+                <div class="value" id="stat-metrics">-</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('traces')">Traces</button>
+            <button class="tab" onclick="switchTab('logs')">Logs</button>
+            <button class="tab" onclick="switchTab('metrics')">Metrics</button>
+        </div>
+
+        <!-- Traces Tab -->
+        <div id="traces-tab" class="tab-content active">
+            <div id="traces-list-view">
+                <div class="trace-list" id="traces-container">
+                    <div class="loading">Loading traces...</div>
+                </div>
+            </div>
+            <div id="trace-detail-view" style="display: none;">
+                <button class="back-button" onclick="showTracesList()">← Back to Traces</button>
+                <div class="trace-detail" id="trace-detail-container"></div>
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Correlated Logs</h3>
+                <div class="log-list" id="trace-logs-container"></div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logs-tab" class="tab-content">
+            <div class="logs-controls">
+                <input type="text" id="trace-id-filter" placeholder="Filter by trace ID (optional)">
+                <button onclick="loadLogs()">Filter</button>
+            </div>
+            <div class="log-list" id="logs-container">
+                <div class="loading">Loading logs...</div>
+            </div>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="metrics-tab" class="tab-content">
+            <div class="metric-list" id="metrics-container">
+                <div class="loading">Loading metrics...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="refresh-button" onclick="refreshCurrentTab()" title="Refresh">↻</button>
+
+    <script>
+        let currentTab = 'traces';
+        let currentTraceId = null;
+        let autoRefreshInterval = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            loadTraces();
+            startAutoRefresh();
+        });
+
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(() => {
+                loadStats();
+                refreshCurrentTab();
+            }, 5000); // Refresh every 5 seconds
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            
+            // Load data for tab
+            refreshCurrentTab();
+        }
+
+        function refreshCurrentTab() {
+            if (currentTab === 'traces') {
+                loadTraces();
+            } else if (currentTab === 'logs') {
+                loadLogs();
+            } else if (currentTab === 'metrics') {
+                loadMetrics();
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                document.getElementById('stat-traces').textContent = stats.traces;
+                document.getElementById('stat-logs').textContent = stats.logs;
+                document.getElementById('stat-metrics').textContent = stats.metrics;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadTraces() {
+            try {
+                const response = await fetch('/api/traces?limit=50');
+                const traces = await response.json();
+                
+                const container = document.getElementById('traces-container');
+                
+                if (traces.length === 0) {
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div>No traces yet. Send some data to get started!</div></div>';
+                    return;
+                }
+                
+                container.innerHTML = traces.map(trace => `
+                    <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
+                        <div class="trace-header">
+                            <div class="trace-name">${trace.root_span_name}</div>
+                            <div class="trace-duration">${trace.duration_ms.toFixed(2)}ms</div>
+                        </div>
+                        <div class="trace-meta">
+                            <span>${trace.span_count} spans</span>
+                            <span class="trace-id">${trace.trace_id.substring(0, 16)}...</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading traces:', error);
+                document.getElementById('traces-container').innerHTML = '<div class="empty">Error loading traces</div>';
+            }
+        }
+
+        async function showTraceDetail(traceId) {
+            currentTraceId = traceId;
+            
+            try {
+                const response = await fetch(`/api/traces/${traceId}`);
+                const trace = await response.json();
+                
+                // Hide list, show detail
+                document.getElementById('traces-list-view').style.display = 'none';
+                document.getElementById('trace-detail-view').style.display = 'block';
+                
+                // Render waterfall
+                renderWaterfall(trace);
+                
+                // Load correlated logs
+                loadTraceLog(traceId);
+            } catch (error) {
+                console.error('Error loading trace detail:', error);
+            }
+        }
+
+        function showTracesList() {
+            document.getElementById('traces-list-view').style.display = 'block';
+            document.getElementById('trace-detail-view').style.display = 'none';
+            currentTraceId = null;
+        }
+
+        function renderWaterfall(trace) {
+            const spans = trace.spans;
+            
+            // Find trace bounds
+            const startTimes = spans.map(s => s.startTimeUnixNano || s.start_time || 0);
+            const endTimes = spans.map(s => s.endTimeUnixNano || s.end_time || 0);
+            const traceStart = Math.min(...startTimes);
+            const traceEnd = Math.max(...endTimes);
+            const traceDuration = traceEnd - traceStart;
+            
+            const container = document.getElementById('trace-detail-container');
+            
+            container.innerHTML = `
+                <h2>Trace: ${trace.trace_id}</h2>
+                <p style="color: #8b949e; margin-bottom: 20px;">${trace.span_count} spans • ${(traceDuration / 1_000_000).toFixed(2)}ms total</p>
+                <div class="waterfall">
+                    ${spans.map(span => {
+                        const startTime = span.startTimeUnixNano || span.start_time || 0;
+                        const endTime = span.endTimeUnixNano || span.end_time || 0;
+                        const duration = endTime - startTime;
+                        const offset = startTime - traceStart;
+                        
+                        const leftPercent = (offset / traceDuration) * 100;
+                        const widthPercent = (duration / traceDuration) * 100;
+                        
+                        return `
+                            <div class="span-row">
+                                <div class="span-info">
+                                    <div class="span-name" title="${span.name}">${span.name}</div>
+                                    <div class="span-timeline">
+                                        <div class="span-bar" style="left: ${leftPercent}%; width: ${widthPercent}%;">
+                                            ${duration > traceDuration * 0.1 ? (duration / 1_000_000).toFixed(2) + 'ms' : ''}
+                                        </div>
+                                    </div>
+                                    <div class="span-duration">${(duration / 1_000_000).toFixed(2)}ms</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        async function loadLogs() {
+            const traceIdFilter = document.getElementById('trace-id-filter').value.trim();
+            const url = traceIdFilter ? `/api/logs?trace_id=${traceIdFilter}` : '/api/logs?limit=100';
+            
+            try {
+                const response = await fetch(url);
+                const logs = await response.json();
+                
+                const container = document.getElementById('logs-container');
+                
+                if (logs.length === 0) {
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><div>No logs found</div></div>';
+                    return;
+                }
+                
+                container.innerHTML = logs.map(log => {
+                    const timestamp = new Date(log.timestamp * 1000).toISOString();
+                    const severity = log.severity || 'INFO';
+                    const traceId = log.trace_id || log.traceId || '';
+                    const message = log.message || JSON.stringify(log);
+                    
+                    return `
+                        <div class="log-item">
+                            <div>
+                                <span class="log-timestamp">${timestamp}</span>
+                                <span class="log-severity ${severity}">${severity}</span>
+                                ${traceId ? `<span class="log-trace-id" onclick="showTraceFromLog('${traceId}')">${traceId.substring(0, 16)}...</span>` : ''}
+                            </div>
+                            <div class="log-message">${message}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                document.getElementById('logs-container').innerHTML = '<div class="empty">Error loading logs</div>';
+            }
+        }
+
+        async function loadTraceLog(traceId) {
+            try {
+                const response = await fetch(`/api/logs?trace_id=${traceId}`);
+                const logs = await response.json();
+                
+                const container = document.getElementById('trace-logs-container');
+                
+                if (logs.length === 0) {
+                    container.innerHTML = '<div class="empty" style="padding: 20px;">No logs for this trace</div>';
+                    return;
+                }
+                
+                container.innerHTML = logs.map(log => {
+                    const timestamp = new Date(log.timestamp * 1000).toISOString();
+                    const severity = log.severity || 'INFO';
+                    const message = log.message || JSON.stringify(log);
+                    
+                    return `
+                        <div class="log-item">
+                            <div>
+                                <span class="log-timestamp">${timestamp}</span>
+                                <span class="log-severity ${severity}">${severity}</span>
+                            </div>
+                            <div class="log-message">${message}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading trace logs:', error);
+            }
+        }
+
+        function showTraceFromLog(traceId) {
+            switchTab('traces');
+            setTimeout(() => showTraceDetail(traceId), 100);
+        }
+
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/metrics');
+                const metricNames = await response.json();
+                
+                const container = document.getElementById('metrics-container');
+                
+                if (metricNames.length === 0) {
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">📈</div><div>No metrics yet</div></div>';
+                    return;
+                }
+                
+                container.innerHTML = metricNames.map(name => `
+                    <div class="metric-card">
+                        <div class="metric-name">${name}</div>
+                        <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}">
+                            <canvas></canvas>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Load data for each metric
+                for (const name of metricNames) {
+                    loadMetricData(name);
+                }
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+                document.getElementById('metrics-container').innerHTML = '<div class="empty">Error loading metrics</div>';
+            }
+        }
+
+        async function loadMetricData(name) {
+            try {
+                const response = await fetch(`/api/metrics/${name}`);
+                const data = await response.json();
+                
+                if (data.data.length === 0) return;
+                
+                const chartId = `metric-${name.replace(/\./g, '-')}`;
+                const canvas = document.querySelector(`#${chartId} canvas`);
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                const points = data.data;
+                
+                // Simple line chart
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                
+                const values = points.map(p => p.value);
+                const maxValue = Math.max(...values);
+                const minValue = Math.min(...values);
+                const range = maxValue - minValue || 1;
+                
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                points.forEach((point, i) => {
+                    const x = (i / (points.length - 1)) * canvas.width;
+                    const y = canvas.height - ((point.value - minValue) / range) * canvas.height;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.stroke();
+                
+                // Draw last value
+                const lastValue = values[values.length - 1];
+                ctx.fillStyle = '#58a6ff';
+                ctx.font = 'bold 24px -apple-system';
+                ctx.textAlign = 'center';
+                ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2);
+                
+            } catch (error) {
+                console.error(`Error loading metric data for ${name}:`, error);
+            }
+        }
+    </script>
+</body>
+</html>
+

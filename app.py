@@ -2,6 +2,8 @@ import json
 import random
 import time
 import sys
+import os
+import requests
 from datetime import datetime, timezone
 from flask import Flask, jsonify
 from opentelemetry import trace, metrics
@@ -40,6 +42,16 @@ greeting_counter = meter.create_counter(
 
 app = Flask(__name__)
 
+# TinyOlly integration
+TINYOLLY_ENDPOINT = os.getenv('TINYOLLY_ENDPOINT', 'http://tinyolly:5002')
+
+def send_to_tinyolly(endpoint, data):
+    """Send data to TinyOlly (non-blocking, best effort)"""
+    try:
+        requests.post(f"{TINYOLLY_ENDPOINT}{endpoint}", json=data, timeout=1)
+    except:
+        pass  # Fail silently, don't disrupt main app
+
 def log_with_trace(level, message):
     """Helper to log with trace context in structured JSON format"""
     span = trace.get_current_span()
@@ -56,11 +68,42 @@ def log_with_trace(level, message):
     }
     
     print(json.dumps(log_entry), file=sys.stderr, flush=True)
+    
+    # Also send to TinyOlly
+    tinyolly_log = {
+        "timestamp": time.time(),
+        "severity": level.upper(),
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "message": message
+    }
+    send_to_tinyolly('/v1/logs', tinyolly_log)
 
 @app.route('/')
 def home():
     request_counter.add(1, {"endpoint": "/", "method": "GET"})
     log_with_trace('info', "Home endpoint called")
+    
+    # Send metrics to TinyOlly
+    send_to_tinyolly('/v1/metrics', {
+        "name": "http.server.requests",
+        "timestamp": time.time(),
+        "value": 1,
+        "labels": {"endpoint": "/", "method": "GET"}
+    })
+    
+    # Send trace to TinyOlly
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx.trace_id != 0:
+        send_to_tinyolly('/v1/traces', {
+            "traceId": format(ctx.trace_id, '032x'),
+            "spanId": format(ctx.span_id, '016x'),
+            "name": "GET /",
+            "startTimeUnixNano": int((time.time() - 0.05) * 1_000_000_000),
+            "endTimeUnixNano": int(time.time() * 1_000_000_000)
+        })
+    
     return jsonify({
         "message": "TinyOTel Demo App",
         "endpoints": ["/", "/hello", "/calculate", "/error"]
@@ -68,6 +111,7 @@ def home():
 
 @app.route('/hello')
 def hello():
+    start_time = time.time()
     request_counter.add(1, {"endpoint": "/hello", "method": "GET"})
     
     name = random.choice(["Alice", "Bob", "Charlie", "Diana"])
@@ -75,9 +119,30 @@ def hello():
     log_with_trace('info', f"Greeting user: {name}")
     
     # Simulate some work
-    time.sleep(random.uniform(0.1, 0.5))
+    work_duration = random.uniform(0.1, 0.5)
+    time.sleep(work_duration)
     
     log_with_trace('info', f"Completed greeting for {name}")
+    
+    # Send metrics to TinyOlly
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.greetings.total",
+        "timestamp": time.time(),
+        "value": 1,
+        "labels": {"name": name}
+    })
+    
+    # Send trace to TinyOlly
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx.trace_id != 0:
+        send_to_tinyolly('/v1/traces', {
+            "traceId": format(ctx.trace_id, '032x'),
+            "spanId": format(ctx.span_id, '016x'),
+            "name": f"GET /hello ({name})",
+            "startTimeUnixNano": int(start_time * 1_000_000_000),
+            "endTimeUnixNano": int(time.time() * 1_000_000_000)
+        })
     
     return jsonify({
         "message": f"Hello, {name}!",
@@ -86,6 +151,7 @@ def hello():
 
 @app.route('/calculate')
 def calculate():
+    start_time = time.time()
     request_counter.add(1, {"endpoint": "/calculate", "method": "GET"})
     calculation_counter.add(1, {"operation": "addition"})
     
@@ -96,11 +162,38 @@ def calculate():
     b = random.randint(1, 100)
     
     log_with_trace('info', f"Calculating {a} + {b}")
-    time.sleep(random.uniform(0.2, 0.8))
+    calc_duration = random.uniform(0.2, 0.8)
+    time.sleep(calc_duration)
     result = a + b
     
     calculation_result.record(result, {"operation": "addition"})
     log_with_trace('info', f"Calculation complete: {result}")
+    
+    # Send metrics to TinyOlly
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.calculations.total",
+        "timestamp": time.time(),
+        "value": 1,
+        "labels": {"operation": "addition"}
+    })
+    send_to_tinyolly('/v1/metrics', {
+        "name": "app.calculation.result",
+        "timestamp": time.time(),
+        "value": result,
+        "labels": {"operation": "addition"}
+    })
+    
+    # Send trace to TinyOlly
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx.trace_id != 0:
+        send_to_tinyolly('/v1/traces', {
+            "traceId": format(ctx.trace_id, '032x'),
+            "spanId": format(ctx.span_id, '016x'),
+            "name": f"GET /calculate ({a}+{b}={result})",
+            "startTimeUnixNano": int(start_time * 1_000_000_000),
+            "endTimeUnixNano": int(time.time() * 1_000_000_000)
+        })
     
     return jsonify({
         "operation": "addition",
@@ -111,8 +204,29 @@ def calculate():
 
 @app.route('/error')
 def error():
+    start_time = time.time()
     request_counter.add(1, {"endpoint": "/error", "method": "GET", "status": "error"})
     log_with_trace('error', "Error endpoint called - simulating failure")
+    
+    # Send metrics to TinyOlly
+    send_to_tinyolly('/v1/metrics', {
+        "name": "http.server.requests",
+        "timestamp": time.time(),
+        "value": 1,
+        "labels": {"endpoint": "/error", "method": "GET", "status": "error"}
+    })
+    
+    # Send trace to TinyOlly
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx.trace_id != 0:
+        send_to_tinyolly('/v1/traces', {
+            "traceId": format(ctx.trace_id, '032x'),
+            "spanId": format(ctx.span_id, '016x'),
+            "name": "GET /error (error)",
+            "startTimeUnixNano": int(start_time * 1_000_000_000),
+            "endTimeUnixNano": int(time.time() * 1_000_000_000)
+        })
     
     # Randomly decide what kind of error
     if random.random() > 0.5:

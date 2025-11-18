@@ -2,6 +2,8 @@
 
 A minimal OpenTelemetry demo showing metrics, traces, and logs.
 
+**Includes TinyOlly**: A custom observability backend built from scratch! See [TINYOLLY-README.md](TINYOLLY-README.md) for details.
+
 ## Components
 
 ### 1. OpenTelemetry Collector
@@ -78,7 +80,7 @@ All received telemetry data will be printed to the console.
 
 View app logs with structured JSON and trace IDs:
 ```bash
-./03-logs-app.sh
+./03-show-logs.sh
 ```
 
 ### Step 4: View Traces
@@ -105,4 +107,52 @@ docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.se
 ```bash
 ./06-cleanup.sh
 ```
+
+## 🔍 TinyOlly - Custom Observability Backend
+
+Want to see how observability backends work under the hood? Check out **TinyOlly** - a complete observability platform built from scratch (no Grafana, no Jaeger, just Python + Redis + HTML/JS)!
+
+### What is TinyOlly?
+
+TinyOlly is a lightweight observability backend that:
+- ✅ Receives traces, logs, and metrics via HTTP API
+- ✅ Stores data in Redis with 10-minute TTL
+- ✅ Provides a web UI with trace waterfall visualization
+- ✅ Correlates logs with traces using trace/span IDs
+- ✅ Visualizes metrics in real-time
+- ✅ Built entirely from scratch (~1,200 lines of code)
+
+### Quick Start with TinyOlly
+
+```bash
+# Start TinyOlly with the full stack
+./07-start-tinyolly.sh
+
+# Generate traffic
+./02-test-traffic.sh
+
+# Open TinyOlly UI in browser
+open http://localhost:5002
+
+# Stop everything
+./08-stop-tinyolly.sh
+```
+
+### Features
+
+- 🎯 **Trace Waterfall View**: Visual timeline showing span execution
+- 📝 **Log Correlation**: Click on a trace to see all related logs
+- 📊 **Metrics Charts**: Real-time visualization of custom metrics
+- 🔄 **Auto-Refresh**: Updates every 5 seconds
+- 🌙 **Dark Theme**: Easy on the eyes for long debugging sessions
+
+### Learn How It Works
+
+Read the [TinyOlly README](TINYOLLY-README.md) to understand:
+- How observability backends store and query data
+- How trace correlation works with trace/span IDs
+- How to build waterfall visualizations
+- How to implement in-memory storage with TTL
+
+**TinyOlly proves that observability isn't magic - it's just good software engineering!**
 
