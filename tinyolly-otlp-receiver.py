@@ -132,14 +132,61 @@ def store_metric(metric_data):
                             timestamp = int(point.get('timeUnixNano', 0)) / 1_000_000_000
                             
                             # Extract value based on metric type
-                            if 'histogram' in metric:
-                                # For histograms, use sum/count to get average, or just sum if count is 0
+                            is_histogram = 'histogram' in metric
+                            if is_histogram:
+                                # For histograms, extract all components
                                 hist_sum = float(point.get('sum', 0))
                                 hist_count = float(point.get('count', 0))
+                                hist_min = point.get('min')
+                                hist_max = point.get('max')
+                                
+                                # Get bucket counts and boundaries
+                                bucket_counts = point.get('bucketCounts', [])
+                                explicit_bounds = point.get('explicitBounds', [])
+                                
+                                # Calculate average for line chart
                                 value = (hist_sum / hist_count) if hist_count > 0 else hist_sum
+                                
+                                # Store histogram-specific data
+                                histogram_data = {
+                                    'sum': hist_sum,
+                                    'count': int(hist_count),
+                                    'min': float(hist_min) if hist_min is not None else None,
+                                    'max': float(hist_max) if hist_max is not None else None,
+                                    'average': value
+                                }
+                                
+                                # Process buckets if available
+                                # In OTLP: bucketCounts has N+1 elements (N boundaries + 1 +Inf bucket)
+                                # explicitBounds has N elements (the boundaries)
+                                if bucket_counts:
+                                    buckets = []
+                                    for i, count in enumerate(bucket_counts):
+                                        # The last bucket is always +Inf if explicit_bounds exist
+                                        if explicit_bounds and i < len(explicit_bounds):
+                                            bucket_bound = explicit_bounds[i]
+                                            buckets.append({
+                                                'bound': float(bucket_bound),
+                                                'count': int(count)
+                                            })
+                                        elif explicit_bounds and i == len(explicit_bounds):
+                                            # This is the +Inf bucket
+                                            buckets.append({
+                                                'bound': None,  # None represents +Inf
+                                                'count': int(count)
+                                            })
+                                        elif not explicit_bounds:
+                                            # No boundaries specified, just store counts
+                                            buckets.append({
+                                                'bound': None,
+                                                'count': int(count)
+                                            })
+                                    
+                                    histogram_data['buckets'] = buckets
                             else:
                                 # For counters and gauges
                                 value = point.get('asInt', point.get('asDouble', 0))
+                                histogram_data = None
                             
                             # Extract attributes/labels
                             labels = {}
@@ -156,6 +203,10 @@ def store_metric(metric_data):
                                 'value': value,
                                 'labels': labels
                             }
+                            
+                            # Add histogram data if available
+                            if is_histogram and histogram_data:
+                                metric_record['histogram'] = histogram_data
                             
                             # Store with TinyOlly's structure
                             metric_key = f'metric:{metric_name}'

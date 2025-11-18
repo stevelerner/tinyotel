@@ -46,33 +46,27 @@
             margin-top: 2px;
         }
 
-        .stats {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .stat-card {
-            background: #fff;
-            border: 1px solid #ddd;
+        .tab-stat {
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
             border-radius: 4px;
-            padding: 10px;
-            flex: 1;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
         }
 
-        .stat-card h3 {
+        .tab-stat-label {
             color: #666;
-            font-size: 9px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 4px;
+            font-weight: 500;
         }
 
-        .stat-card .value {
-            font-size: 20px;
+        .tab-stat-value {
             color: #2c5aa0;
-            font-weight: bold;
+            font-weight: 700;
+            font-size: 13px;
         }
 
         .tabs {
@@ -447,6 +441,41 @@
             padding: 8px 0;
         }
 
+        .histogram-info {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .histogram-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .histogram-stat {
+            flex: 1;
+            text-align: center;
+        }
+
+        .histogram-stat-label {
+            color: #999;
+            margin-right: 4px;
+        }
+
+        .histogram-stat-value {
+            font-weight: 600;
+            color: #2c5aa0;
+        }
+
+        .histogram-bucket-chart {
+            width: 100%;
+            height: 80px;
+            margin-top: 8px;
+        }
+
         .refresh-button {
             position: fixed;
             bottom: 20px;
@@ -509,22 +538,6 @@
     </header>
 
     <div class="container">
-        <!-- Stats Cards -->
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Logs</h3>
-                <div class="value" id="stat-logs">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>Metrics</h3>
-                <div class="value" id="stat-metrics">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>Traces</h3>
-                <div class="value" id="stat-traces">-</div>
-            </div>
-        </div>
-
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
@@ -534,6 +547,10 @@
 
         <!-- Logs Tab -->
         <div id="logs-tab" class="tab-content active">
+            <div class="tab-stat">
+                <span class="tab-stat-label">Total Logs:</span>
+                <span class="tab-stat-value" id="stat-logs">-</span>
+            </div>
             <div class="logs-controls">
                 <input type="text" id="trace-id-filter" placeholder="Filter by trace ID (optional)">
                 <button onclick="loadLogs()">Filter</button>
@@ -546,6 +563,10 @@
 
         <!-- Metrics Tab -->
         <div id="metrics-tab" class="tab-content">
+            <div class="tab-stat">
+                <span class="tab-stat-label">Total Metrics:</span>
+                <span class="tab-stat-value" id="stat-metrics">-</span>
+            </div>
             <div class="metric-list" id="metrics-container">
                 <div class="loading">Loading metrics...</div>
             </div>
@@ -554,6 +575,10 @@
         <!-- Traces Tab -->
         <div id="traces-tab" class="tab-content">
             <div id="traces-list-view">
+                <div class="tab-stat">
+                    <span class="tab-stat-label">Total Traces:</span>
+                    <span class="tab-stat-value" id="stat-traces">-</span>
+                </div>
                 <div class="trace-list" id="traces-container">
                     <div class="loading">Loading traces...</div>
                 </div>
@@ -921,6 +946,7 @@
 
         let currentMetricNames = [];
         let metricCharts = {}; // Store Chart.js instances
+        let histogramBucketCharts = {}; // Store bucket bar charts for histograms
 
         async function loadMetrics() {
             try {
@@ -941,15 +967,40 @@
                 if (metricsChanged) {
                     // Destroy old charts
                     Object.values(metricCharts).forEach(chart => chart.destroy());
+                    Object.values(histogramBucketCharts).forEach(chart => chart.destroy());
                     metricCharts = {};
+                    histogramBucketCharts = {};
                     
                     console.log('Metrics list changed, recreating DOM');
                     currentMetricNames = metricNames;
                     container.innerHTML = metricNames.map(name => `
-                        <div class="metric-card">
+                        <div class="metric-card" id="metric-card-${name.replace(/\./g, '-')}">
                             <div class="metric-name">${name}</div>
                             <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
                                 <canvas></canvas>
+                            </div>
+                            <div class="histogram-info" id="histogram-${name.replace(/\./g, '-')}" style="display: none;">
+                                <div class="histogram-stats">
+                                    <div class="histogram-stat">
+                                        <span class="histogram-stat-label">Min:</span>
+                                        <span class="histogram-stat-value" id="hist-min-${name.replace(/\./g, '-')}">-</span>
+                                    </div>
+                                    <div class="histogram-stat">
+                                        <span class="histogram-stat-label">Avg:</span>
+                                        <span class="histogram-stat-value" id="hist-avg-${name.replace(/\./g, '-')}">-</span>
+                                    </div>
+                                    <div class="histogram-stat">
+                                        <span class="histogram-stat-label">Max:</span>
+                                        <span class="histogram-stat-value" id="hist-max-${name.replace(/\./g, '-')}">-</span>
+                                    </div>
+                                    <div class="histogram-stat">
+                                        <span class="histogram-stat-label">Count:</span>
+                                        <span class="histogram-stat-value" id="hist-count-${name.replace(/\./g, '-')}">-</span>
+                                    </div>
+                                </div>
+                                <div class="histogram-bucket-chart" id="histogram-bucket-${name.replace(/\./g, '-')}">
+                                    <canvas></canvas>
+                                </div>
                             </div>
                         </div>
                     `).join('');
@@ -1053,6 +1104,17 @@
                 
                 if (newPoints.length === 0) return; // No new data
                 
+                // Check if this is a histogram metric
+                const latestPoint = data.data[data.data.length - 1];
+                const isHistogram = latestPoint && latestPoint.histogram;
+                
+                // Show/hide histogram info
+                const histogramInfoId = `histogram-${name.replace(/\./g, '-')}`;
+                const histogramInfo = document.getElementById(histogramInfoId);
+                if (histogramInfo) {
+                    histogramInfo.style.display = isHistogram ? 'block' : 'none';
+                }
+                
                 // Add all new points
                 let addedCount = 0;
                 for (const point of newPoints) {
@@ -1087,9 +1149,124 @@
                 
                 chart.update();
                 
+                // Update histogram visualization if applicable
+                if (isHistogram && latestPoint.histogram) {
+                    updateHistogramDisplay(name, latestPoint.histogram);
+                }
+                
             } catch (error) {
                 console.error(`Error updating metric ${name}:`, error);
             }
+        }
+
+        function updateHistogramDisplay(name, histogramData) {
+            const safeName = name.replace(/\./g, '-');
+            
+            // Update stats
+            if (histogramData.min !== null && histogramData.min !== undefined) {
+                document.getElementById(`hist-min-${safeName}`).textContent = histogramData.min.toFixed(2);
+            }
+            if (histogramData.average !== null && histogramData.average !== undefined) {
+                document.getElementById(`hist-avg-${safeName}`).textContent = histogramData.average.toFixed(2);
+            }
+            if (histogramData.max !== null && histogramData.max !== undefined) {
+                document.getElementById(`hist-max-${safeName}`).textContent = histogramData.max.toFixed(2);
+            }
+            if (histogramData.count !== null && histogramData.count !== undefined) {
+                document.getElementById(`hist-count-${safeName}`).textContent = histogramData.count;
+            }
+            
+            // Update bucket chart
+            if (histogramData.buckets && histogramData.buckets.length > 0) {
+                updateHistogramBuckets(name, histogramData.buckets);
+            }
+        }
+
+        function updateHistogramBuckets(name, buckets) {
+            const safeName = name.replace(/\./g, '-');
+            const containerId = `histogram-bucket-${safeName}`;
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            // Get or create canvas
+            let canvas = container.querySelector('canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                container.appendChild(canvas);
+            }
+            
+            // Destroy existing chart if it exists
+            if (histogramBucketCharts[name]) {
+                histogramBucketCharts[name].destroy();
+            }
+            
+            // Prepare bucket labels and counts
+            // In OTLP: bucket i contains values in range [explicit_bounds[i-1], explicit_bounds[i])
+            // Bucket 0 is (-inf, explicit_bounds[0]), last bucket is [explicit_bounds[N-1], +inf)
+            const labels = buckets.map((bucket, i) => {
+                if (bucket.bound === null) {
+                    // This is the +Inf bucket (last bucket)
+                    if (i > 0 && buckets[i-1].bound !== null) {
+                        return `≥${buckets[i-1].bound}`;
+                    }
+                    return '+Inf';
+                } else if (i === 0) {
+                    // First bucket: (-inf, bound)
+                    return `<${bucket.bound}`;
+                } else {
+                    // Middle buckets: [prev_bound, bound)
+                    const prevBound = buckets[i-1].bound;
+                    if (prevBound === null) {
+                        return `<${bucket.bound}`;
+                    }
+                    return `${prevBound}-${bucket.bound}`;
+                }
+            });
+            const counts = buckets.map(b => b.count);
+            
+            // Create bar chart
+            const ctx = canvas.getContext('2d');
+            histogramBucketCharts[name] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Count',
+                        data: counts,
+                        backgroundColor: 'rgba(44, 90, 160, 0.6)',
+                        borderColor: 'rgba(44, 90, 160, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: 8 },
+                                stepSize: 1
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 7 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
         }
     </script>
 </body>
