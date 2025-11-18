@@ -111,52 +111,65 @@ def store_metric(metric_data):
         for resource_metric in metric_data.get('resourceMetrics', []):
             for scope_metric in resource_metric.get('scopeMetrics', []):
                 for metric in scope_metric.get('metrics', []):
-                    metric_name = metric.get('name', '')
-                    
-                    if not metric_name:
+                    try:
+                        metric_name = metric.get('name', '')
+                        
+                        if not metric_name:
+                            continue
+                        
+                        # Handle different metric types
+                        if 'sum' in metric:
+                            data_points = metric['sum'].get('dataPoints', [])
+                        elif 'gauge' in metric:
+                            data_points = metric['gauge'].get('dataPoints', [])
+                        elif 'histogram' in metric:
+                            data_points = metric['histogram'].get('dataPoints', [])
+                        else:
+                            continue
+                        
+                        for point in data_points:
+                            # Convert nanoseconds to seconds
+                            timestamp = int(point.get('timeUnixNano', 0)) / 1_000_000_000
+                            
+                            # Extract value based on metric type
+                            if 'histogram' in metric:
+                                # For histograms, use sum/count to get average, or just sum if count is 0
+                                hist_sum = float(point.get('sum', 0))
+                                hist_count = float(point.get('count', 0))
+                                value = (hist_sum / hist_count) if hist_count > 0 else hist_sum
+                            else:
+                                # For counters and gauges
+                                value = point.get('asInt', point.get('asDouble', 0))
+                            
+                            # Extract attributes/labels
+                            labels = {}
+                            for attr in point.get('attributes', []):
+                                key = attr.get('key', '')
+                                val = attr.get('value', {})
+                                if 'stringValue' in val:
+                                    labels[key] = val['stringValue']
+                                elif 'intValue' in val:
+                                    labels[key] = str(val['intValue'])
+                            
+                            metric_record = {
+                                'timestamp': timestamp,
+                                'value': value,
+                                'labels': labels
+                            }
+                            
+                            # Store with TinyOlly's structure
+                            metric_key = f'metric:{metric_name}'
+                            redis_client.zadd(metric_key, {json.dumps(metric_record): timestamp})
+                            redis_client.expire(metric_key, DATA_TTL)
+                            
+                            # Keep track of all metric names
+                            redis_client.sadd('metric_names', metric_name)
+                            redis_client.expire('metric_names', DATA_TTL)
+                    except Exception as e:
+                        print(f"Error processing individual metric: {e}", flush=True)
+                        import traceback
+                        traceback.print_exc()
                         continue
-                    
-                    # Handle different metric types
-                    if 'sum' in metric:
-                        data_points = metric['sum'].get('dataPoints', [])
-                    elif 'gauge' in metric:
-                        data_points = metric['gauge'].get('dataPoints', [])
-                    elif 'histogram' in metric:
-                        data_points = metric['histogram'].get('dataPoints', [])
-                    else:
-                        continue
-                    
-                    for point in data_points:
-                        # Convert nanoseconds to seconds
-                        timestamp = int(point.get('timeUnixNano', 0)) / 1_000_000_000
-                        
-                        # Extract value
-                        value = point.get('asInt', point.get('asDouble', 0))
-                        
-                        # Extract attributes/labels
-                        labels = {}
-                        for attr in point.get('attributes', []):
-                            key = attr.get('key', '')
-                            val = attr.get('value', {})
-                            if 'stringValue' in val:
-                                labels[key] = val['stringValue']
-                            elif 'intValue' in val:
-                                labels[key] = str(val['intValue'])
-                        
-                        metric_record = {
-                            'timestamp': timestamp,
-                            'value': value,
-                            'labels': labels
-                        }
-                        
-                        # Store with TinyOlly's structure
-                        metric_key = f'metric:{metric_name}'
-                        redis_client.zadd(metric_key, {json.dumps(metric_record): timestamp})
-                        redis_client.expire(metric_key, DATA_TTL)
-                        
-                        # Keep track of all metric names
-                        redis_client.sadd('metric_names', metric_name)
-                        redis_client.expire('metric_names', DATA_TTL)
                         
     except Exception as e:
         print(f"Error storing metric: {e}")

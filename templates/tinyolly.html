@@ -503,7 +503,7 @@
 <body>
     <header>
         <div class="container">
-            <h1>TinyOlly</h1>
+            <h1 style="cursor: pointer;" onclick="window.location.href='/'">TinyOlly</h1>
             <div class="subtitle">Minimal Observability Backend - Logs, Metrics & Traces</div>
         </div>
     </header>
@@ -537,6 +537,7 @@
             <div class="logs-controls">
                 <input type="text" id="trace-id-filter" placeholder="Filter by trace ID (optional)">
                 <button onclick="loadLogs()">Filter</button>
+                <button onclick="clearLogFilter()">Clear</button>
             </div>
             <div class="log-list" id="logs-container">
                 <div class="loading">Loading logs...</div>
@@ -911,6 +912,13 @@
             setTimeout(() => showTraceDetail(traceId), 100);
         }
 
+        function clearLogFilter() {
+            // Clear the filter input
+            document.getElementById('trace-id-filter').value = '';
+            // Reload all logs
+            loadLogs();
+        }
+
         let currentMetricNames = [];
         let metricCharts = {}; // Store Chart.js instances
 
@@ -1038,24 +1046,41 @@
                 if (data.data.length === 0 || !metricCharts[name]) return;
                 
                 const chart = metricCharts[name];
-                const latestPoint = data.data[data.data.length - 1];
                 
-                // Only add if this is a new timestamp
-                if (lastTimestamps[name] === latestPoint.timestamp) {
-                    return; // Same data point, skip
+                // Get all new points since last update
+                const lastTimestamp = lastTimestamps[name] || 0;
+                const newPoints = data.data.filter(point => point.timestamp > lastTimestamp);
+                
+                if (newPoints.length === 0) return; // No new data
+                
+                // Add all new points
+                let addedCount = 0;
+                for (const point of newPoints) {
+                    const timestamp = new Date(point.timestamp * 1000).toLocaleTimeString();
+                    const value = parseFloat(point.value);
+                    
+                    // For metrics with labels, aggregate by taking the sum of all label values at this timestamp
+                    const existingIndex = chart.data.labels.indexOf(timestamp);
+                    if (existingIndex >= 0) {
+                        // Same timestamp, add to existing value (aggregate across labels)
+                        chart.data.datasets[0].data[existingIndex] += value;
+                    } else {
+                        // New timestamp, add new point
+                        chart.data.labels.push(timestamp);
+                        chart.data.datasets[0].data.push(value);
+                        addedCount++;
+                    }
                 }
                 
-                lastTimestamps[name] = latestPoint.timestamp;
+                // Update last timestamp to the latest point
+                if (newPoints.length > 0) {
+                    lastTimestamps[name] = Math.max(...newPoints.map(p => p.timestamp));
+                }
                 
-                // Add new point
-                const timestamp = new Date(latestPoint.timestamp * 1000).toLocaleTimeString();
-                chart.data.labels.push(timestamp);
-                chart.data.datasets[0].data.push(latestPoint.value);
-                
-                console.log(`${name}: Added value ${latestPoint.value.toFixed(2)} at ${timestamp}`);
+                console.log(`${name}: Added ${addedCount} new points`);
                 
                 // Keep only last MAX_POINTS
-                if (chart.data.labels.length > MAX_POINTS) {
+                while (chart.data.labels.length > MAX_POINTS) {
                     chart.data.labels.shift();
                     chart.data.datasets[0].data.shift();
                 }

@@ -13,9 +13,9 @@ from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
-# Setup metrics
+# Setup metrics - export every 5 seconds for better chart visibility
 metric_exporter = OTLPMetricExporter(endpoint="http://otel-collector:4317")
-metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=2000)
+metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=5000)
 meter_provider = MeterProvider(metric_readers=[metric_reader])
 metrics.set_meter_provider(meter_provider)
 
