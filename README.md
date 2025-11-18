@@ -90,9 +90,23 @@ View collector output with traces:
 ./05-logs-collector.sh
 ```
 
+### View Metrics
+
+The collector exports metrics every 5 seconds via the debug exporter.
+
+Watch metrics as they're collected:
+```bash
+./07-show-metrics.sh
+```
+
+Or view recent metrics manually:
+```bash
+docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.server\.requests)"
+```
+
 ### Cleanup
 
 ```bash
-./06-cleanup.sh
+./08-cleanup.sh
 ```
 
