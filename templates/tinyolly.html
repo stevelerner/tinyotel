@@ -13,91 +13,96 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0d1117;
-            color: #c9d1d9;
-            line-height: 1.6;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.4;
+            font-size: 11px;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 12px;
         }
 
         header {
-            background: #161b22;
-            padding: 20px 0;
-            border-bottom: 1px solid #30363d;
-            margin-bottom: 30px;
+            background: #fff;
+            padding: 12px 0;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         header h1 {
-            color: #58a6ff;
-            font-size: 2em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            color: #2c5aa0;
+            font-size: 18px;
+            font-weight: 600;
         }
 
         header .subtitle {
-            color: #8b949e;
-            font-size: 0.9em;
-            margin-top: 5px;
+            color: #666;
+            font-size: 10px;
+            margin-top: 2px;
         }
 
         .stats {
             display: flex;
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .stat-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
             flex: 1;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .stat-card h3 {
-            color: #8b949e;
-            font-size: 0.9em;
+            color: #666;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
 
         .stat-card .value {
-            font-size: 2em;
-            color: #58a6ff;
+            font-size: 20px;
+            color: #2c5aa0;
             font-weight: bold;
         }
 
         .tabs {
             display: flex;
-            gap: 10px;
-            border-bottom: 1px solid #30363d;
-            margin-bottom: 20px;
+            gap: 6px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 12px;
+            background: #fff;
+            padding: 6px 6px 0 6px;
         }
 
         .tab {
-            padding: 10px 20px;
+            padding: 6px 12px;
             background: transparent;
             border: none;
-            color: #8b949e;
+            color: #666;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 11px;
             border-bottom: 2px solid transparent;
             transition: all 0.2s;
         }
 
         .tab:hover {
-            color: #c9d1d9;
+            color: #333;
+            background: #f5f5f5;
         }
 
         .tab.active {
-            color: #58a6ff;
-            border-bottom-color: #58a6ff;
+            color: #2c5aa0;
+            border-bottom-color: #2c5aa0;
+            font-weight: 600;
         }
 
         .tab-content {
@@ -110,21 +115,22 @@
 
         /* Traces View */
         .trace-list {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .trace-item {
-            padding: 15px 20px;
-            border-bottom: 1px solid #30363d;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
             cursor: pointer;
             transition: background 0.2s;
         }
 
         .trace-item:hover {
-            background: #1c2128;
+            background: #f9f9f9;
         }
 
         .trace-item:last-child {
@@ -135,59 +141,93 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .trace-name {
             font-weight: 600;
-            color: #c9d1d9;
-            font-size: 1.1em;
+            color: #333;
+            font-size: 11px;
         }
 
         .trace-duration {
-            color: #58a6ff;
+            color: #2c5aa0;
             font-weight: 600;
+            font-size: 11px;
         }
 
         .trace-meta {
             display: flex;
-            gap: 20px;
-            font-size: 0.9em;
-            color: #8b949e;
+            gap: 12px;
+            font-size: 10px;
+            color: #666;
         }
 
         .trace-id {
             font-family: 'Courier New', monospace;
-            font-size: 0.85em;
+            font-size: 9px;
         }
 
         /* Trace Detail View */
         .trace-detail {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
-        .back-button {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #c9d1d9;
-            padding: 8px 16px;
-            border-radius: 6px;
+        .trace-detail h2 {
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .trace-detail p {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .back-button, .view-json-button {
+            background: #fff;
+            border: 1px solid #ddd;
+            color: #333;
+            padding: 6px 12px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9em;
-            margin-bottom: 20px;
+            font-size: 10px;
+            margin-bottom: 12px;
             display: inline-block;
+            margin-right: 6px;
         }
 
-        .back-button:hover {
-            background: #30363d;
+        .back-button:hover, .view-json-button:hover {
+            background: #f5f5f5;
+            border-color: #2c5aa0;
+        }
+
+        .json-view {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            overflow: auto;
+            max-height: 400px;
+        }
+
+        .json-view pre {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .waterfall {
-            margin-top: 20px;
+            margin-top: 12px;
         }
 
         .span-row {
@@ -197,16 +237,16 @@
         .span-info {
             display: flex;
             align-items: center;
-            padding: 8px;
-            background: #0d1117;
-            border-radius: 4px;
-            margin-bottom: 4px;
+            padding: 4px;
+            background: #fafafa;
+            border-radius: 3px;
+            margin-bottom: 2px;
         }
 
         .span-name {
-            flex: 0 0 200px;
-            font-size: 0.9em;
-            color: #c9d1d9;
+            flex: 0 0 150px;
+            font-size: 10px;
+            color: #333;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -214,22 +254,23 @@
 
         .span-timeline {
             flex: 1;
-            height: 30px;
+            height: 24px;
             position: relative;
-            background: #161b22;
-            border-radius: 4px;
+            background: #fff;
+            border-radius: 3px;
             overflow: hidden;
+            border: 1px solid #e0e0e0;
         }
 
         .span-bar {
             position: absolute;
             height: 100%;
-            background: linear-gradient(90deg, #58a6ff, #1f6feb);
-            border-radius: 3px;
+            background: linear-gradient(90deg, #4a90e2, #2c5aa0);
+            border-radius: 2px;
             display: flex;
             align-items: center;
-            padding: 0 8px;
-            font-size: 0.8em;
+            padding: 0 6px;
+            font-size: 9px;
             color: white;
             font-weight: 600;
             transition: opacity 0.2s;
@@ -241,56 +282,58 @@
         }
 
         .span-duration {
-            flex: 0 0 100px;
+            flex: 0 0 70px;
             text-align: right;
-            font-size: 0.85em;
-            color: #8b949e;
-            padding-left: 10px;
+            font-size: 10px;
+            color: #666;
+            padding-left: 8px;
         }
 
         /* Logs View */
         .logs-controls {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .logs-controls input {
             flex: 1;
-            padding: 10px;
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            color: #c9d1d9;
-            font-size: 0.9em;
+            padding: 6px 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #333;
+            font-size: 10px;
         }
 
         .logs-controls button {
-            padding: 10px 20px;
-            background: #238636;
+            padding: 6px 12px;
+            background: #2c5aa0;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             color: white;
             cursor: pointer;
             font-weight: 600;
+            font-size: 10px;
         }
 
         .logs-controls button:hover {
-            background: #2ea043;
+            background: #1e4a80;
         }
 
         .log-list {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .log-item {
-            padding: 12px 20px;
-            border-bottom: 1px solid #30363d;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
             font-family: 'Courier New', monospace;
-            font-size: 0.85em;
+            font-size: 10px;
         }
 
         .log-item:last-child {
@@ -298,129 +341,180 @@
         }
 
         .log-timestamp {
-            color: #8b949e;
+            color: #666;
         }
 
         .log-severity {
             display: inline-block;
-            padding: 2px 8px;
+            padding: 2px 6px;
             border-radius: 3px;
             font-weight: 600;
-            font-size: 0.8em;
-            margin: 0 10px;
+            font-size: 9px;
+            margin: 0 6px;
         }
 
         .log-severity.INFO {
-            background: #1f6feb;
-            color: white;
+            background: #e3f2fd;
+            color: #1565c0;
         }
 
         .log-severity.WARNING {
-            background: #d29922;
-            color: white;
+            background: #fff3e0;
+            color: #e65100;
         }
 
         .log-severity.ERROR {
-            background: #da3633;
-            color: white;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .log-trace-link {
+            display: inline-block;
+            margin-left: 12px;
+            padding: 2px 6px;
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 3px;
+            color: #2c5aa0;
+            cursor: pointer;
+            font-size: 9px;
+            text-decoration: none;
+        }
+
+        .log-trace-link:hover {
+            background: #bbdefb;
+            border-color: #2c5aa0;
         }
 
         .log-trace-id {
-            color: #58a6ff;
-            cursor: pointer;
-            text-decoration: underline;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
         }
 
         .log-message {
-            color: #c9d1d9;
-            margin-left: 20px;
-            margin-top: 5px;
+            color: #333;
+            margin-left: 12px;
+            margin-top: 4px;
+        }
+
+        .log-json-toggle {
+            color: #2c5aa0;
+            cursor: pointer;
+            font-size: 9px;
+            margin-left: 6px;
+            text-decoration: underline;
         }
 
         /* Metrics View */
         .metric-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
         }
 
         .metric-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .metric-name {
             font-weight: 600;
-            color: #c9d1d9;
-            margin-bottom: 15px;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 11px;
         }
 
         .metric-chart {
             width: 100%;
-            height: 150px;
-            background: #0d1117;
-            border-radius: 4px;
+            height: 120px;
+            background: #fafafa;
+            border-radius: 3px;
             position: relative;
+            border: 1px solid #e0e0e0;
+            cursor: crosshair;
+        }
+
+        .metric-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 9px;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 1000;
+            display: none;
         }
 
         .metric-value {
-            font-size: 2em;
-            color: #58a6ff;
+            font-size: 16px;
+            color: #2c5aa0;
             font-weight: bold;
             text-align: center;
-            padding: 20px 0;
+            padding: 8px 0;
         }
 
         .refresh-button {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: #238636;
+            background: #2c5aa0;
             border: none;
             color: white;
-            font-size: 1.5em;
+            font-size: 18px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             transition: all 0.2s;
         }
 
         .refresh-button:hover {
-            background: #2ea043;
+            background: #1e4a80;
             transform: scale(1.1);
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #8b949e;
+            padding: 30px;
+            color: #666;
+            font-size: 11px;
         }
 
         .empty {
             text-align: center;
-            padding: 60px;
-            color: #8b949e;
+            padding: 40px;
+            color: #666;
+            font-size: 11px;
         }
 
         .empty-icon {
-            font-size: 3em;
-            margin-bottom: 20px;
+            font-size: 30px;
+            margin-bottom: 12px;
         }
 
         canvas {
             width: 100%;
             height: 100%;
         }
+
+        h3 {
+            font-size: 12px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>🔍 TinyOlly</h1>
+            <h1>TinyOlly</h1>
             <div class="subtitle">Minimal Observability Backend - Traces, Logs & Metrics</div>
         </div>
     </header>
@@ -457,9 +551,11 @@
                 </div>
             </div>
             <div id="trace-detail-view" style="display: none;">
-                <button class="back-button" onclick="showTracesList()">← Back to Traces</button>
+                <button class="back-button" onclick="showTracesList()">Back to Traces</button>
+                <button class="view-json-button" onclick="toggleTraceJSON()">View JSON</button>
+                <div id="trace-json-view" class="json-view" style="display: none;"></div>
                 <div class="trace-detail" id="trace-detail-container"></div>
-                <h3 style="margin-top: 30px; margin-bottom: 15px;">Correlated Logs</h3>
+                <h3>Correlated Logs</h3>
                 <div class="log-list" id="trace-logs-container"></div>
             </div>
         </div>
@@ -489,7 +585,9 @@
     <script>
         let currentTab = 'traces';
         let currentTraceId = null;
+        let currentTraceData = null;
         let autoRefreshInterval = null;
+        let expandedLogs = new Set();
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -521,7 +619,7 @@
         }
 
         function refreshCurrentTab() {
-            if (currentTab === 'traces') {
+            if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
                 loadTraces();
             } else if (currentTab === 'logs') {
                 loadLogs();
@@ -550,7 +648,7 @@
                 const container = document.getElementById('traces-container');
                 
                 if (traces.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div>No traces yet. Send some data to get started!</div></div>';
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No traces yet. Send some data to get started!</div></div>';
                     return;
                 }
                 
@@ -578,10 +676,14 @@
             try {
                 const response = await fetch(`/api/traces/${traceId}`);
                 const trace = await response.json();
+                currentTraceData = trace;
                 
                 // Hide list, show detail
                 document.getElementById('traces-list-view').style.display = 'none';
                 document.getElementById('trace-detail-view').style.display = 'block';
+                
+                // Hide JSON view initially
+                document.getElementById('trace-json-view').style.display = 'none';
                 
                 // Render waterfall
                 renderWaterfall(trace);
@@ -593,10 +695,21 @@
             }
         }
 
+        function toggleTraceJSON() {
+            const jsonView = document.getElementById('trace-json-view');
+            if (jsonView.style.display === 'none') {
+                jsonView.style.display = 'block';
+                jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
+            } else {
+                jsonView.style.display = 'none';
+            }
+        }
+
         function showTracesList() {
             document.getElementById('traces-list-view').style.display = 'block';
             document.getElementById('trace-detail-view').style.display = 'none';
             currentTraceId = null;
+            currentTraceData = null;
         }
 
         function renderWaterfall(trace) {
@@ -613,7 +726,7 @@
             
             container.innerHTML = `
                 <h2>Trace: ${trace.trace_id}</h2>
-                <p style="color: #8b949e; margin-bottom: 20px;">${trace.span_count} spans • ${(traceDuration / 1_000_000).toFixed(2)}ms total</p>
+                <p>${trace.span_count} spans - ${(traceDuration / 1_000_000).toFixed(2)}ms total</p>
                 <div class="waterfall">
                     ${spans.map(span => {
                         const startTime = span.startTimeUnixNano || span.start_time || 0;
@@ -653,30 +766,44 @@
                 const container = document.getElementById('logs-container');
                 
                 if (logs.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><div>No logs found</div></div>';
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No logs found</div></div>';
                     return;
                 }
                 
-                container.innerHTML = logs.map(log => {
+                container.innerHTML = logs.map((log, idx) => {
+                    const logId = `log-${idx}`;
                     const timestamp = new Date(log.timestamp * 1000).toISOString();
                     const severity = log.severity || 'INFO';
                     const traceId = log.trace_id || log.traceId || '';
-                    const message = log.message || JSON.stringify(log);
+                    const message = log.message || '';
                     
                     return `
                         <div class="log-item">
                             <div>
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
-                                ${traceId ? `<span class="log-trace-id" onclick="showTraceFromLog('${traceId}')">${traceId.substring(0, 16)}...</span>` : ''}
+                                ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${traceId}</span></span>` : ''}
+                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
                             </div>
                             <div class="log-message">${message}</div>
+                            <div id="${logId}" class="json-view" style="display: none;">
+                                <pre>${JSON.stringify(log, null, 2)}</pre>
+                            </div>
                         </div>
                     `;
                 }).join('');
             } catch (error) {
                 console.error('Error loading logs:', error);
                 document.getElementById('logs-container').innerHTML = '<div class="empty">Error loading logs</div>';
+            }
+        }
+
+        function toggleLogJSON(logId) {
+            const jsonView = document.getElementById(logId);
+            if (jsonView.style.display === 'none') {
+                jsonView.style.display = 'block';
+            } else {
+                jsonView.style.display = 'none';
             }
         }
 
@@ -688,22 +815,29 @@
                 const container = document.getElementById('trace-logs-container');
                 
                 if (logs.length === 0) {
-                    container.innerHTML = '<div class="empty" style="padding: 20px;">No logs for this trace</div>';
+                    container.innerHTML = '<div class="empty" style="padding: 12px;">No logs for this trace</div>';
                     return;
                 }
                 
-                container.innerHTML = logs.map(log => {
+                container.innerHTML = logs.map((log, idx) => {
+                    const logId = `trace-log-${idx}`;
                     const timestamp = new Date(log.timestamp * 1000).toISOString();
                     const severity = log.severity || 'INFO';
-                    const message = log.message || JSON.stringify(log);
+                    const message = log.message || '';
+                    const traceId = log.trace_id || log.traceId || '';
                     
                     return `
                         <div class="log-item">
                             <div>
                                 <span class="log-timestamp">${timestamp}</span>
                                 <span class="log-severity ${severity}">${severity}</span>
+                                ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${traceId}</span></span>` : ''}
+                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view json</span>
                             </div>
                             <div class="log-message">${message}</div>
+                            <div id="${logId}" class="json-view" style="display: none;">
+                                <pre>${JSON.stringify(log, null, 2)}</pre>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -713,7 +847,14 @@
         }
 
         function showTraceFromLog(traceId) {
-            switchTab('traces');
+            // Switch to traces tab
+            currentTab = 'traces';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab')[0].classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('traces-tab').classList.add('active');
+            
+            // Show trace detail
             setTimeout(() => showTraceDetail(traceId), 100);
         }
 
@@ -725,7 +866,7 @@
                 const container = document.getElementById('metrics-container');
                 
                 if (metricNames.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">📈</div><div>No metrics yet</div></div>';
+                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
                     return;
                 }
                 
@@ -762,22 +903,41 @@
                 const ctx = canvas.getContext('2d');
                 const points = data.data;
                 
-                // Simple line chart
+                // Set canvas size
                 canvas.width = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
                 const values = points.map(p => p.value);
                 const maxValue = Math.max(...values);
                 const minValue = Math.min(...values);
                 const range = maxValue - minValue || 1;
                 
-                ctx.strokeStyle = '#58a6ff';
+                const padding = 20;
+                const chartWidth = canvas.width - padding * 2;
+                const chartHeight = canvas.height - padding * 2;
+                
+                // Draw grid lines
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= 4; i++) {
+                    const y = padding + (i * chartHeight / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(canvas.width - padding, y);
+                    ctx.stroke();
+                }
+                
+                // Draw line
+                ctx.strokeStyle = '#2c5aa0';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 
                 points.forEach((point, i) => {
-                    const x = (i / (points.length - 1)) * canvas.width;
-                    const y = canvas.height - ((point.value - minValue) / range) * canvas.height;
+                    const x = padding + (i / (points.length - 1)) * chartWidth;
+                    const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
                     
                     if (i === 0) {
                         ctx.moveTo(x, y);
@@ -788,12 +948,30 @@
                 
                 ctx.stroke();
                 
-                // Draw last value
+                // Draw points
+                ctx.fillStyle = '#2c5aa0';
+                points.forEach((point, i) => {
+                    const x = padding + (i / (points.length - 1)) * chartWidth;
+                    const y = padding + chartHeight - ((point.value - minValue) / range) * chartHeight;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Draw labels
+                ctx.fillStyle = '#666';
+                ctx.font = '9px -apple-system';
+                ctx.textAlign = 'right';
+                ctx.fillText(maxValue.toFixed(1), padding - 5, padding + 5);
+                ctx.fillText(minValue.toFixed(1), padding - 5, canvas.height - padding + 5);
+                
+                // Draw last value (larger)
                 const lastValue = values[values.length - 1];
-                ctx.fillStyle = '#58a6ff';
-                ctx.font = 'bold 24px -apple-system';
+                ctx.fillStyle = '#2c5aa0';
+                ctx.font = 'bold 14px -apple-system';
                 ctx.textAlign = 'center';
-                ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2);
+                ctx.fillText(lastValue.toFixed(2), canvas.width / 2, canvas.height / 2 + 5);
                 
             } catch (error) {
                 console.error(`Error loading metric data for ${name}:`, error);
@@ -802,4 +980,3 @@
     </script>
 </body>
 </html>
-

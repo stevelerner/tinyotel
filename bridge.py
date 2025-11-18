@@ -21,7 +21,7 @@ def extract_logs_from_docker():
 
 def poll_and_forward():
     """Poll app logs and forward telemetry to TinyOlly"""
-    print("🌉 Bridge service started - forwarding telemetry to TinyOlly")
+    print("Bridge service started - forwarding telemetry to TinyOlly")
     print(f"   App: {APP_ENDPOINT}")
     print(f"   TinyOlly: {TINYOLLY_ENDPOINT}")
     
@@ -36,10 +36,10 @@ def poll_and_forward():
             try:
                 health = requests.get(f"{TINYOLLY_ENDPOINT}/health", timeout=2)
                 if health.status_code != 200:
-                    print("⚠️  TinyOlly not ready yet...")
+                    print("TinyOlly not ready yet...")
                     continue
             except:
-                print("⚠️  Waiting for TinyOlly...")
+                print("Waiting for TinyOlly...")
                 continue
             
             # In this simple version, we'll generate sample data when app is active
@@ -63,9 +63,9 @@ def poll_and_forward():
             
             try:
                 requests.post(f"{TINYOLLY_ENDPOINT}/v1/traces", json=trace_data, timeout=2)
-                print(f"✓ Forwarded trace {trace_id[:16]}...")
+                print(f"Forwarded trace {trace_id[:16]}...")
             except Exception as e:
-                print(f"✗ Failed to forward trace: {e}")
+                print(f"Failed to forward trace: {e}")
             
             # Send sample log
             log_data = {
@@ -78,9 +78,9 @@ def poll_and_forward():
             
             try:
                 requests.post(f"{TINYOLLY_ENDPOINT}/v1/logs", json=log_data, timeout=2)
-                print(f"✓ Forwarded log")
+                print(f"Forwarded log")
             except Exception as e:
-                print(f"✗ Failed to forward log: {e}")
+                print(f"Failed to forward log: {e}")
             
             # Send sample metric
             metric_data = {
@@ -92,9 +92,9 @@ def poll_and_forward():
             
             try:
                 requests.post(f"{TINYOLLY_ENDPOINT}/v1/metrics", json=metric_data, timeout=2)
-                print(f"✓ Forwarded metric")
+                print(f"Forwarded metric")
             except Exception as e:
-                print(f"✗ Failed to forward metric: {e}")
+                print(f"Failed to forward metric: {e}")
             
         except Exception as e:
             print(f"Error in bridge: {e}")

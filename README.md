@@ -108,19 +108,19 @@ docker-compose logs --tail=200 otel-collector | grep -E "(Metrics|app\.|http\.se
 ./06-cleanup.sh
 ```
 
-## 🔍 TinyOlly - Custom Observability Backend
+## TinyOlly - Custom Observability Backend
 
 Want to see how observability backends work under the hood? Check out **TinyOlly** - a complete observability platform built from scratch (no Grafana, no Jaeger, just Python + Redis + HTML/JS)!
 
 ### What is TinyOlly?
 
 TinyOlly is a lightweight observability backend that:
-- ✅ Receives traces, logs, and metrics via HTTP API
-- ✅ Stores data in Redis with 10-minute TTL
-- ✅ Provides a web UI with trace waterfall visualization
-- ✅ Correlates logs with traces using trace/span IDs
-- ✅ Visualizes metrics in real-time
-- ✅ Built entirely from scratch (~1,200 lines of code)
+- Receives traces, logs, and metrics via HTTP API
+- Stores data in Redis with 10-minute TTL
+- Provides a web UI with trace waterfall visualization
+- Correlates logs with traces using trace/span IDs
+- Visualizes metrics in real-time
+- Built entirely from scratch (~1,200 lines of code)
 
 ### Quick Start with TinyOlly
 
@@ -140,11 +140,11 @@ open http://localhost:5002
 
 ### Features
 
-- 🎯 **Trace Waterfall View**: Visual timeline showing span execution
-- 📝 **Log Correlation**: Click on a trace to see all related logs
-- 📊 **Metrics Charts**: Real-time visualization of custom metrics
-- 🔄 **Auto-Refresh**: Updates every 5 seconds
-- 🌙 **Dark Theme**: Easy on the eyes for long debugging sessions
+- **Trace Waterfall View**: Visual timeline showing span execution
+- **Log Correlation**: Click on a trace to see all related logs
+- **Metrics Charts**: Real-time visualization of custom metrics
+- **Auto-Refresh**: Updates every 5 seconds
+- **Light Theme**: Clean and professional interface
 
 ### Learn How It Works
 
