@@ -26,6 +26,6 @@ echo ""
 echo "Next steps:"
 echo "  1. Generate traffic: ./02-continuous-traffic.sh (keep running)"
 echo "  2. Open TinyOlly UI: open http://localhost:5002"
-echo "  3. Stop services:    ./08-stop-tinyolly.sh"
+echo "  3. Stop services:    ./03-stop-tinyolly.sh"
 echo ""
 

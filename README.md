@@ -10,7 +10,7 @@ Includes two Flask microservices auto instrumenated for tracing and using OpenTe
 
 **1. Start the full stack:**
 ```bash
-./07-start-tinyolly.sh
+./01-start-tinyolly.sh
 ```
 
 **2. Generate traffic** (keep running in a separate terminal):
@@ -31,7 +31,7 @@ open http://localhost:5002
 
 **5. Stop everything:**
 ```bash
-./08-stop-tinyolly.sh
+./03-stop-tinyolly.sh
 ```
 
 ## What You'll See
@@ -60,6 +60,28 @@ open http://localhost:5002
 - Manual refresh to avoid distractions
 
 ![Logs](images/logs.png)
+
+## Advanced: Console Viewing
+
+Want to see raw telemetry in the terminal? Use console mode:
+
+```bash
+# Start collector with console output
+./0A-start-console.sh
+
+# Generate traffic (separate terminal)
+./02-continuous-traffic.sh
+
+# View telemetry in console
+./0C-show-logs.sh     # Structured logs
+./0D-show-traces.sh   # Distributed traces  
+./0E-show-metrics.sh  # Metrics (refreshes every 2s)
+
+# Cleanup
+./0F-cleanup.sh
+```
+
+This mode uses the OpenTelemetry Collector's debug exporter to print telemetry to stdout.
 
 ## Architecture
 
@@ -104,36 +126,3 @@ By reading ~2,350 lines of code, you'll understand:
 - UI: ~1,270 lines (HTML/JS with Chart.js)
 
 No heavy frameworks - just Flask, Redis, Chart.js, and clear, commented code.
-
-## Advanced: Console Viewing
-
-Want to see raw telemetry in the terminal? Use console mode:
-
-```bash
-# Start collector with console output
-./01-start.sh
-
-# Generate traffic (separate terminal)
-./02-continuous-traffic.sh
-
-# View telemetry in console
-./03-show-logs.sh     # Structured logs
-./04-show-traces.sh   # Distributed traces  
-./05-show-metrics.sh  # Metrics (refreshes every 2s)
-
-# Cleanup
-./06-cleanup.sh
-```
-
-This mode uses the OpenTelemetry Collector's debug exporter to print telemetry to stdout.
-
-## Why "Tiny"?
-
-Simple enough to understand in an afternoon, complex enough to demonstrate real observability concepts with automatic instrumentation and distributed tracing.
-
-Perfect for:
-- Learning how observability systems work internally
-- Understanding trace correlation and context propagation  
-- Building your own monitoring tools
-- Teaching others about observability
-
