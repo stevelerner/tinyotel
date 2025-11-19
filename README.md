@@ -42,6 +42,9 @@ Generate traffic and view logs/traces/metrics using the provided scripts in the 
 
 ### Option 3: Core Only (Bring Your Own App)
 Start only the TinyOlly observability backend to use with your own application.
+- Your application should send its OpenTelemetry data to TinyOlly's OTel Collector destination: `http://otel-collector:4317` or `http://otel-collector:4318`. For traces you can use manual or auto instrumentation. Logs and metrics should use the OpenTelemetry SDK.  
+- The collector will send the data to TinyOlly's OTLP receiver. The receiver will parse the data and store it in Redis. 
+- The TinyOlly UI will then display the telemetry.  
 
 ```bash
 ./01-start-core.sh
