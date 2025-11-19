@@ -80,6 +80,11 @@ Point your OpenTelemetry exporter to `localhost:4317` (gRPC) or `localhost:4318`
 **3. View Your Telemetry:**
 Open `http://localhost:5002` to see your app's traces and metrics!
 
+**4. Stop Core Services:**
+```bash
+./00A-stop-tinyolly-core.sh
+```
+
 ## Advanced: Console Viewing
 
 Want to see raw telemetry in the terminal? Use console mode:
