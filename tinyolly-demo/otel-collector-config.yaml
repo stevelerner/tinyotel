@@ -1,0 +1,29 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+  
+  otlphttp:
+    endpoint: http://tinyolly-otlp-receiver:5003
+    encoding: json
+    compression: none
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug, otlphttp]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug, otlphttp]
+    logs:
+      receivers: [otlp]
+      exporters: [debug, otlphttp]
+

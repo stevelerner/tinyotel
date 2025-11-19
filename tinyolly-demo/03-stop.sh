@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Stopping TinyOlly services..."
-docker-compose -f docker-compose-with-tinyolly.yml down
+docker-compose -f docker-compose.yml down
 
 echo ""
 echo "All services stopped"

@@ -15,7 +15,8 @@ echo "Starting services..."
 echo ""
 
 # Use docker-compose with TinyOlly config (rebuild to pick up changes)
-docker-compose -f docker-compose-with-tinyolly.yml up -d --build
+# Use docker-compose with TinyOlly config (rebuild to pick up changes)
+docker-compose -f docker-compose.yml up -d --build
 
 echo ""
 echo "Services started!"
@@ -24,8 +25,8 @@ echo "TinyOlly UI:    http://localhost:5002"
 echo "Demo Frontend:  http://localhost:5001"
 echo ""
 echo "Next steps:"
-echo "  1. Generate traffic: ./02-continuous-traffic.sh (keep running)"
+echo "  1. Generate traffic: ./02-traffic.sh (keep running)"
 echo "  2. Open TinyOlly UI: open http://localhost:5002"
-echo "  3. Stop services:    ./03-stop-tinyolly.sh"
+echo "  3. Stop services:    ./03-stop.sh"
 echo ""
 

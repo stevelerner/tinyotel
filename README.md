@@ -1,111 +1,64 @@
 # TinyOlly - Learn Observability by Building It
 
-A **minimal observability backend built from scratch** (~2,350 lines) to understand how logs, metrics, and traces work internally. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.
+A **minimal observability backend built from scratch** to observe logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
 
-Includes two Flask microservices auto instrumenated for tracing and using OpenTelemetry Python SDK to export logs and metrics to an OpenTelemetry collector. This is the most modern design for taking advantage of OpenTelemetry using easy auto-instrumentation for traces yet writing properly formatted logs and metrics using the Otel SDK.
+Think of TinyOlly as a tool to livetail your telemetry with visuals like a full production observability tool... To be used while you are developing your application so that you don't have to use a full external observability stack.  
+
+Includes a demo two Flask microservices auto instrumenated for tracing and using OpenTelemetry Python SDK to export logs and metrics to an OpenTelemetry collector. This is the most modern design for taking advantage of OpenTelemetry using easy auto-instrumentation for traces yet writing properly formatted logs and metrics using the Otel SDK.
 
 ## Quick Start
 
 > **Note:** Built and tested on Docker Desktop for Mac.
 
-**1. Start the full stack:**
+### Option 1: Full TinyOlly Demo
+Run the complete stack with the demo frontend, backend, and TinyOlly UI.
+
 ```bash
-./01-start-tinyolly.sh
+cd tinyolly-demo
+./01-start.sh
 ```
 
-**2. Generate traffic** (keep running in a separate terminal):
+Then generate traffic:
 ```bash
-./02-continuous-traffic.sh
+./02-traffic.sh
 ```
 
-**3. Open the UI:**
+Open the UI at `http://localhost:5002`.
+
+Stop the demo:
 ```bash
-open http://localhost:5002
+./03-stop.sh
 ```
 
-**4. Explore the traces:**
-- Click the **Traces** tab
-- Select a trace (look for `/process-order` - these show distributed tracing across services!)
-- Click any span bar to view full JSON details
-- Use the time axis to understand timing
+### Option 2: Console Demo
+Run the demo app with the OpenTelemetry Collector outputting to the console (no UI).
 
-**5. Stop everything:**
 ```bash
-./03-stop-tinyolly.sh
+cd tinyolly-console-demo
+./01-start.sh
 ```
 
-## What You'll See
+Generate traffic and view logs/traces/metrics using the provided scripts in the folder.
 
-### Interactive Trace Waterfall
-- Time axis showing when each operation occurred (0%, 25%, 50%, 75%, 100%)
-- Click any span to inspect attributes, timing, and metadata
-- Visual highlighting and smooth scrolling to details
-- Distributed traces across frontend and backend microservices
+### Option 3: Core Only (Bring Your Own App)
+Start only the TinyOlly observability backend to use with your own application.
 
-![Trace Waterfall](images/traces.png)
-
-![Trace Details](images/tracejson.png)
-
-### Real-Time Metrics
-- Live charts with Chart.js animations (2-second refresh)
-- Histogram metrics with min/max/avg/count and bucket distributions
-- Counters and gauges with rolling 30-point window
-
-![Metrics](images/metrics.png)
-
-### Correlated Logs
-- Click trace ID in log → jump to trace detail
-- Click "View Logs" in trace → filter logs by trace ID
-- Bidirectional navigation between logs and traces
-- Manual refresh to avoid distractions
-
-![Logs](images/logs.png)
-
-## Bring Your Own App
-
-Want to use TinyOlly with your own application? You can start just the observability backend without the demo apps.
-
-**1. Start Core Services:**
 ```bash
-./00-start-tinyolly-core.sh
+./01-start-core.sh
 ```
+
 This starts:
 - **OTel Collector**: Listening on `localhost:4317` (gRPC) and `localhost:4318` (HTTP)
 - **TinyOlly UI**: `http://localhost:5002`
 - **Redis & Receiver**: Backend storage
 
-**2. Instrument Your App:**
+**Instrument Your App:**
 Point your OpenTelemetry exporter to `localhost:4317` (gRPC) or `localhost:4318` (HTTP).
 
-**3. View Your Telemetry:**
-Open `http://localhost:5002` to see your app's traces and metrics!
-
-**4. Stop Core Services:**
+**Stop Core Services:**
 ```bash
-./00A-stop-tinyolly-core.sh
+./02-stop-core.sh
 ```
-
-## Advanced: Console Viewing
-
-Want to see raw telemetry in the terminal? Use console mode:
-
-```bash
-# Start collector with console output
-./0A-start-console.sh
-
-# Generate traffic (separate terminal)
-./02-continuous-traffic.sh
-
-# View telemetry in console
-./0C-show-logs.sh     # Structured logs
-./0D-show-traces.sh   # Distributed traces  
-./0E-show-metrics.sh  # Metrics (refreshes every 2s)
-
-# Cleanup
-./0F-cleanup.sh
-```
-
-This mode uses the OpenTelemetry Collector's debug exporter to print telemetry to stdout.
 
 ## Architecture
 
@@ -121,7 +74,7 @@ Demo Frontend  ←→  Demo Backend (distributed tracing)
    TinyOlly UI (Flask + single HTML file)
 ```
 
-**Key Points:**
+**Demo: Key Points:**
 - Apps use **automatic OpenTelemetry instrumentation** - no manual span creation
 - HTTP calls between services automatically create distributed traces
 - Apps only speak OTLP - they don't know TinyOlly exists
@@ -134,15 +87,16 @@ Demo Frontend  ←→  Demo Backend (distributed tracing)
 - All endpoints generate logs, metrics, and traces
 
 **Code Breakdown:**
-- **Demo Frontend** (`app.py`): ~290 lines
+**Code Breakdown:**
+- **Demo Frontend** (`tinyolly-demo/app.py`): ~290 lines
   - Flask app with auto-instrumentation
-- **Demo Backend** (`backend-service.py`): ~180 lines
+- **Demo Backend** (`tinyolly-demo/backend-service.py`): ~180 lines
   - Microservice for distributed tracing demo
 - **Tinyolly OTLP Receiver** (`tinyolly-otlp-receiver.py`): ~270 lines
   - gRPC/HTTP server that parses OTLP and stores in Redis
 - **TinyOlly UI** (`tinyolly-ui.py`): ~170 lines
   - Flask backend for the dashboard
-- **Storage Engine** (`tinyolly-redis-storage.py`): ~240 lines
+- **Storage Engine** (`tinyolly_redis_storage.py`): ~240 lines
   - Shared Redis logic for traces, metrics, and logs
 - **Dashboard UI** (`templates/index.html`): ~1,270 lines
   - Single-file HTML/JS/CSS with Chart.js
