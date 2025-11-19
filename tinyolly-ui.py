@@ -10,7 +10,7 @@ import json
 import time
 from datetime import datetime
 import uuid
-from storage import Storage
+from tinyolly_redis_storage import Storage
 
 app = Flask(__name__)
 CORS(app)

@@ -128,20 +128,18 @@ Demo Frontend  ←→  Demo Backend (distributed tracing)
 - `/hello`, `/calculate`, `/error` - Simple endpoints
 - All endpoints generate logs, metrics, and traces
 
-## What You'll Learn
-
-By reading ~2,350 lines of code, you'll understand:
-- How to receive and parse OTLP telemetry
-- How trace/span correlation works with logs
-- How to build interactive waterfall visualizations
-- How to display real-time metrics with histograms
-- How in-memory storage with TTL works
-
 **Code Breakdown:**
-- Demo Frontend: ~270 lines (instrumented Flask app)
-- Demo Backend: ~240 lines (distributed tracing demo)
-- OTLP receiver: ~240 lines (protocol parsing, storage)
-- TinyOlly backend: ~330 lines (API endpoints)
-- UI: ~1,270 lines (HTML/JS with Chart.js)
+- **Demo Frontend** (`app.py`): ~290 lines
+  - Flask app with auto-instrumentation
+- **Demo Backend** (`backend-service.py`): ~180 lines
+  - Microservice for distributed tracing demo
+- **Tinyolly OTLP Receiver** (`tinyolly-otlp-receiver.py`): ~270 lines
+  - gRPC/HTTP server that parses OTLP and stores in Redis
+- **TinyOlly UI** (`tinyolly-ui.py`): ~170 lines
+  - Flask backend for the dashboard
+- **Storage Engine** (`tinyolly-redis-storage.py`): ~240 lines
+  - Shared Redis logic for traces, metrics, and logs
+- **Dashboard UI** (`templates/index.html`): ~1,270 lines
+  - Single-file HTML/JS/CSS with Chart.js
 
 No heavy frameworks - just Flask, Redis, Chart.js, and clear, commented code.

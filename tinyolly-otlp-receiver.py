@@ -6,7 +6,7 @@ import json
 import time
 import os
 from flask import Flask, request, jsonify
-from storage import Storage
+from tinyolly_redis_storage import Storage
 
 app = Flask(__name__)
 

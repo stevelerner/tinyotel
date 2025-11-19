@@ -7,7 +7,7 @@ import sys
 mock_redis_module = MagicMock()
 sys.modules['redis'] = mock_redis_module
 
-from storage import Storage
+from tinyolly_redis_storage import Storage
 
 class TestStorage(unittest.TestCase):
     def setUp(self):
