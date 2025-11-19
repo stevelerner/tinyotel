@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Generating CONTINUOUS traffic to TinyOlly app..."
+echo "Generating CONTINUOUS traffic to Demo Frontend..."
 echo "Press Ctrl+C to stop"
 echo ""
 

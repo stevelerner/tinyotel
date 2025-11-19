@@ -23,11 +23,11 @@ docker-compose -f docker-compose-with-tinyolly.yml down 2>/dev/null
 
 echo ""
 echo "Removing containers..."
-docker rm -f tinyolly-app backend-service otel-collector tinyolly tinyolly-redis tinyolly-otlp-receiver 2>/dev/null
+docker rm -f demo-frontend demo-backend otel-collector tinyolly tinyolly-redis tinyolly-otlp-receiver 2>/dev/null
 
 echo ""
 echo "Removing images..."
-docker rmi tinyolly-app tinyolly-backend-service tinyolly-tinyolly tinyolly-tinyolly-otlp-receiver 2>/dev/null
+docker rmi tinyolly-demo-frontend tinyolly-demo-backend tinyolly-tinyolly tinyolly-tinyolly-otlp-receiver 2>/dev/null
 
 echo ""
 echo "Removing volumes..."

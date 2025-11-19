@@ -64,7 +64,7 @@ open http://localhost:5002
 ## Architecture
 
 ```
-Frontend Service  ←→  Backend Service (distributed tracing)
+Demo Frontend  ←→  Demo Backend (distributed tracing)
         ↓                    ↓
    OTel Collector  ←─────────┘
         ↓
@@ -97,8 +97,8 @@ By reading ~2,350 lines of code, you'll understand:
 - How in-memory storage with TTL works
 
 **Code Breakdown:**
-- Frontend service: ~270 lines (instrumented Flask app)
-- Backend service: ~240 lines (distributed tracing demo)
+- Demo Frontend: ~270 lines (instrumented Flask app)
+- Demo Backend: ~240 lines (distributed tracing demo)
 - OTLP receiver: ~240 lines (protocol parsing, storage)
 - TinyOlly backend: ~330 lines (API endpoints)
 - UI: ~1,270 lines (HTML/JS with Chart.js)

@@ -9,13 +9,25 @@ services:
       - "4317:4317"  # OTLP gRPC receiver
       - "4318:4318"  # OTLP HTTP receiver
 
-  app:
-    build: .
-    container_name: tinyolly-app
+  demo-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: demo-backend
     ports:
-      - "5001:5000"
+      - "5004:5000"
     depends_on:
       - otel-collector
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 
+  demo-frontend:
+    build: .
+    container_name: demo-frontend
+    ports:
+      - "5001:5000"
+    depends_on:
+      - otel-collector
+      - demo-backend
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317

@@ -6,22 +6,26 @@ import json
 import time
 import os
 from flask import Flask, request, jsonify
-import redis
+from storage import Storage
 
 app = Flask(__name__)
 
-# Redis connection
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
-# TTL for data (10 minutes)
-DATA_TTL = 600
+# Initialize storage
+storage = Storage()
 
 def store_trace(trace_data):
     """Store trace data in Redis (compatible with TinyOlly frontend)"""
     try:
         for resource_span in trace_data.get('resourceSpans', []):
+            # Extract service name from resource attributes
+            service_name = 'unknown'
+            resource = resource_span.get('resource', {})
+            for attr in resource.get('attributes', []):
+                if attr.get('key') == 'service.name':
+                    val = attr.get('value', {})
+                    service_name = val.get('stringValue', 'unknown')
+                    break
+
             for scope_span in resource_span.get('scopeSpans', []):
                 for span in scope_span.get('spans', []):
                     trace_id = span.get('traceId', '')
@@ -40,18 +44,12 @@ def store_trace(trace_data):
                         'endTimeUnixNano': span.get('endTimeUnixNano', 0),
                         'parentSpanId': span.get('parentSpanId', ''),
                         'attributes': span.get('attributes', []),
-                        'status': span.get('status', {})
+                        'status': span.get('status', {}),
+                        'serviceName': service_name
                     }
                     
-                    # Store span with TinyOlly's structure
-                    # Add to trace's span list
-                    trace_span_key = f"trace:{trace_id}:spans"
-                    redis_client.rpush(trace_span_key, json.dumps(span_record))
-                    redis_client.expire(trace_span_key, DATA_TTL)
-                    
-                    # Add trace_id to index
-                    redis_client.zadd('trace_index', {trace_id: time.time()})
-                    redis_client.expire('trace_index', DATA_TTL)
+                    # Use storage module
+                    storage.store_span(span_record)
                     
     except Exception as e:
         print(f"Error storing trace: {e}")
@@ -81,6 +79,7 @@ def store_log(log_data):
                     log_id = f"{int(timestamp * 1000)}-{hash(message) & 0xFFFFFF}"
                     
                     log_entry = {
+                        'log_id': log_id,
                         'timestamp': timestamp,
                         'traceId': trace_id,
                         'spanId': span_id,
@@ -89,18 +88,8 @@ def store_log(log_data):
                         'attributes': log_record.get('attributes', [])
                     }
                     
-                    # Store with TinyOlly's structure
-                    redis_client.setex(f'log:{log_id}', DATA_TTL, json.dumps(log_entry))
-                    
-                    # Add to log index
-                    redis_client.zadd('log_index', {log_id: timestamp})
-                    redis_client.expire('log_index', DATA_TTL)
-                    
-                    # If trace_id exists, add to trace's log list
-                    if trace_id:
-                        trace_log_key = f"trace:{trace_id}:logs"
-                        redis_client.rpush(trace_log_key, log_id)
-                        redis_client.expire(trace_log_key, DATA_TTL)
+                    # Use storage module
+                    storage.store_log(log_entry)
                     
     except Exception as e:
         print(f"Error storing log: {e}")
@@ -199,6 +188,7 @@ def store_metric(metric_data):
                                     labels[key] = str(val['intValue'])
                             
                             metric_record = {
+                                'name': metric_name,
                                 'timestamp': timestamp,
                                 'value': value,
                                 'labels': labels
@@ -208,14 +198,9 @@ def store_metric(metric_data):
                             if is_histogram and histogram_data:
                                 metric_record['histogram'] = histogram_data
                             
-                            # Store with TinyOlly's structure
-                            metric_key = f'metric:{metric_name}'
-                            redis_client.zadd(metric_key, {json.dumps(metric_record): timestamp})
-                            redis_client.expire(metric_key, DATA_TTL)
+                            # Use storage module
+                            storage.store_metric(metric_record)
                             
-                            # Keep track of all metric names
-                            redis_client.sadd('metric_names', metric_name)
-                            redis_client.expire('metric_names', DATA_TTL)
                     except Exception as e:
                         print(f"Error processing individual metric: {e}", flush=True)
                         import traceback
@@ -276,14 +261,13 @@ def receive_metrics():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check"""
-    try:
-        redis_client.ping()
+    if storage.is_connected():
         return jsonify({'status': 'healthy', 'redis': 'connected'}), 200
-    except:
+    else:
         return jsonify({'status': 'unhealthy', 'redis': 'disconnected'}), 503
 
 if __name__ == '__main__':
     print("Starting TinyOlly OTLP Receiver Backend...")
-    print(f"Redis: {REDIS_HOST}:{REDIS_PORT}")
+    print(f"Redis: {os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     app.run(host='0.0.0.0', port=5003, debug=False)
 

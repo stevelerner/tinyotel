@@ -1,11 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TinyOlly - Observability Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        :root {
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-header: #ffffff;
+            --bg-hover: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --warning-bg: #fef9c3;
+            --warning-text: #854d0e;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-header: #1e293b;
+            --bg-hover: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #60a5fa;
+            --primary-hover: #3b82f6;
+            --success-bg: #064e3b;
+            --success-text: #4ade80;
+            --warning-bg: #451a03;
+            --warning-text: #fcd34d;
+            --error-bg: #7f1d1d;
+            --error-text: #fca5a5;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,95 +57,138 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.4;
-            font-size: 11px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            font-size: 13px;
+            transition: background 0.3s, color 0.3s;
         }
 
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            padding: 12px;
+            padding: 20px;
         }
 
         header {
-            background: #fff;
-            padding: 12px 0;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--bg-header);
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        header .container {
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         header h1 {
-            color: #2c5aa0;
-            font-size: 18px;
-            font-weight: 600;
+            color: var(--primary);
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
         header .subtitle {
-            color: #666;
-            font-size: 10px;
-            margin-top: 2px;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-hover);
         }
 
         .tab-stat {
-            background: #f5f5f5;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            padding: 8px 12px;
-            margin-bottom: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 11px;
+            gap: 12px;
+            font-size: 13px;
+            box-shadow: var(--shadow);
         }
 
         .tab-stat-label {
-            color: #666;
+            color: var(--text-muted);
             font-weight: 500;
         }
 
         .tab-stat-value {
-            color: #2c5aa0;
+            color: var(--primary);
             font-weight: 700;
-            font-size: 13px;
+            font-size: 16px;
         }
 
         .tabs {
             display: flex;
-            gap: 6px;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 12px;
-            background: #fff;
-            padding: 6px 6px 0 6px;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            background: transparent;
+            padding: 0 4px;
         }
 
         .tab {
-            padding: 6px 12px;
+            padding: 10px 16px;
             background: transparent;
             border: none;
-            color: #666;
+            color: var(--text-muted);
             cursor: pointer;
-            font-size: 11px;
+            font-size: 13px;
+            font-weight: 500;
             border-bottom: 2px solid transparent;
             transition: all 0.2s;
+            border-radius: 6px 6px 0 0;
         }
 
         .tab:hover {
-            color: #333;
-            background: #f5f5f5;
+            color: var(--text-main);
+            background: var(--bg-hover);
         }
 
         .tab.active {
-            color: #2c5aa0;
-            border-bottom-color: #2c5aa0;
+            color: var(--primary);
+            border-bottom-color: var(--primary);
             font-weight: 600;
         }
 
         .tab-content {
             display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .tab-content.active {
@@ -110,22 +197,22 @@
 
         /* Traces View */
         .trace-list {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
         }
 
         .trace-item {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
             cursor: pointer;
             transition: background 0.2s;
         }
 
         .trace-item:hover {
-            background: #f9f9f9;
+            background: var(--bg-hover);
         }
 
         .trace-item:last-child {
@@ -136,175 +223,187 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         .trace-name {
             font-weight: 600;
-            color: #333;
-            font-size: 11px;
+            color: var(--text-main);
+            font-size: 13px;
         }
 
         .trace-duration {
-            color: #2c5aa0;
+            color: var(--primary);
             font-weight: 600;
-            font-size: 11px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .trace-meta {
             display: flex;
-            gap: 12px;
-            font-size: 10px;
-            color: #666;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
         .trace-id {
-            font-family: 'Courier New', monospace;
-            font-size: 9px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            opacity: 0.8;
         }
 
         /* Trace Detail View */
         .trace-detail {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
         }
 
         .trace-detail h2 {
-            font-size: 14px;
-            margin-bottom: 6px;
-            color: #333;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--text-main);
         }
 
         .trace-detail p {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
         }
 
-        .back-button, .view-json-button {
-            background: #fff;
-            border: 1px solid #ddd;
-            color: #333;
-            padding: 6px 12px;
-            border-radius: 4px;
+        .back-button,
+        .view-json-button {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 10px;
-            margin-bottom: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 16px;
             display: inline-block;
-            margin-right: 6px;
+            margin-right: 8px;
+            transition: all 0.2s;
         }
 
-        .back-button:hover, .view-json-button:hover {
-            background: #f5f5f5;
-            border-color: #2c5aa0;
+        .back-button:hover,
+        .view-json-button:hover {
+            background: var(--bg-hover);
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         .json-view {
-            background: #fafafa;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 10px;
-            margin: 10px 0;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
             overflow: auto;
-            max-height: 400px;
+            max-height: 500px;
         }
 
         .json-view pre {
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            color: #333;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-main);
             white-space: pre-wrap;
             word-wrap: break-word;
         }
 
         .waterfall {
-            margin-top: 12px;
+            margin-top: 20px;
         }
 
         .span-row {
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .span-info {
             display: flex;
             align-items: center;
-            padding: 4px;
-            background: #fafafa;
-            border-radius: 3px;
-            margin-bottom: 2px;
+            padding: 6px;
+            background: var(--bg-hover);
+            border-radius: 4px;
+            margin-bottom: 4px;
         }
 
         .span-name {
-            flex: 0 0 150px;
-            font-size: 10px;
-            color: #333;
+            flex: 0 0 200px;
+            font-size: 12px;
+            color: var(--text-main);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-weight: 500;
         }
 
         .span-timeline {
             flex: 1;
-            height: 24px;
+            height: 28px;
             position: relative;
-            background: #fff;
-            border-radius: 3px;
+            background: var(--bg-card);
+            border-radius: 4px;
             overflow: hidden;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color);
         }
 
         .span-bar {
             position: absolute;
             height: 100%;
-            background: linear-gradient(90deg, #4a90e2, #2c5aa0);
-            border-radius: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+            border-radius: 3px;
             display: flex;
             align-items: center;
-            padding: 0 6px;
-            font-size: 9px;
+            padding: 0 8px;
+            font-size: 11px;
             color: white;
             font-weight: 600;
             transition: opacity 0.2s;
             cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .span-bar:hover {
-            opacity: 0.8;
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         .span-duration {
-            flex: 0 0 70px;
+            flex: 0 0 80px;
             text-align: right;
-            font-size: 10px;
-            color: #666;
-            padding-left: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding-left: 12px;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .time-axis {
-            margin-top: 16px;
-            padding-top: 8px;
-            border-top: 1px solid #ddd;
+            margin-top: 20px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
         }
 
         .time-markers {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 70px 0 150px;
+            padding: 0 80px 0 200px;
             position: relative;
             height: 24px;
         }
 
         .time-marker {
-            font-size: 9px;
-            color: #666;
+            font-size: 10px;
+            color: var(--text-muted);
             position: absolute;
             transform: translateX(-50%);
             white-space: nowrap;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .time-marker.first {
@@ -324,95 +423,108 @@
             left: 50%;
             width: 1px;
             height: 6px;
-            background: #ddd;
+            background: var(--border-color);
         }
 
         .span-json-container {
-            margin-top: 16px;
-            padding: 12px;
-            background: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
         }
 
         .span-json-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .span-json-title {
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-main);
         }
 
         .span-json-close {
-            background: #e0e0e0;
+            background: var(--border-color);
             border: none;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
             cursor: pointer;
-            color: #666;
+            color: var(--text-muted);
+            transition: all 0.2s;
         }
 
         .span-json-close:hover {
-            background: #d0d0d0;
+            background: var(--text-muted);
+            color: white;
         }
 
         .span-bar.selected {
-            box-shadow: 0 0 0 2px #ffeb3b;
+            box-shadow: 0 0 0 2px #fcd34d;
+            z-index: 10;
         }
 
         /* Logs View */
         .logs-controls {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             display: flex;
-            gap: 8px;
+            gap: 12px;
         }
 
         .logs-controls input {
             flex: 1;
-            padding: 6px 8px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            color: #333;
-            font-size: 10px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .logs-controls input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
 
         .logs-controls button {
-            padding: 6px 12px;
-            background: #2c5aa0;
+            padding: 10px 20px;
+            background: var(--primary);
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             color: white;
             cursor: pointer;
             font-weight: 600;
-            font-size: 10px;
+            font-size: 13px;
+            transition: background 0.2s;
         }
 
         .logs-controls button:hover {
-            background: #1e4a80;
+            background: var(--primary-hover);
         }
 
         .log-list {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
         }
 
         .log-item {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eee;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            display: flex;
+            align-items: flex-start;
         }
 
         .log-item:last-child {
@@ -420,123 +532,143 @@
         }
 
         .log-timestamp {
-            color: #666;
+            color: var(--text-muted);
+            min-width: 140px;
         }
 
         .log-severity {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
+            padding: 2px 8px;
+            border-radius: 4px;
             font-weight: 600;
-            font-size: 9px;
-            margin: 0 6px;
+            font-size: 10px;
+            margin: 0 12px;
+            min-width: 60px;
+            text-align: center;
         }
 
         .log-severity.INFO {
-            background: #e3f2fd;
-            color: #1565c0;
+            background: var(--bg-hover);
+            color: var(--primary);
         }
 
         .log-severity.WARNING {
-            background: #fff3e0;
-            color: #e65100;
+            background: var(--warning-bg);
+            color: var(--warning-text);
         }
 
         .log-severity.ERROR {
-            background: #ffebee;
-            color: #c62828;
+            background: var(--error-bg);
+            color: var(--error-text);
         }
 
         .log-trace-link {
             display: inline-block;
-            margin-left: 12px;
-            padding: 2px 6px;
-            background: #e3f2fd;
-            border: 1px solid #90caf9;
-            border-radius: 3px;
-            color: #2c5aa0;
+            margin-left: auto;
+            padding: 2px 8px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--primary);
             cursor: pointer;
-            font-size: 9px;
+            font-size: 10px;
             text-decoration: none;
+            transition: all 0.2s;
         }
 
         .log-trace-link:hover {
-            background: #bbdefb;
-            border-color: #2c5aa0;
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
         .log-trace-id {
-            font-family: 'Courier New', monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-weight: 600;
         }
 
         .log-message {
-            color: #333;
+            color: var(--text-main);
             margin-left: 12px;
-            margin-top: 4px;
+            flex: 1;
+            word-break: break-all;
         }
 
         .log-json-toggle {
-            color: #2c5aa0;
+            color: var(--primary);
             cursor: pointer;
-            font-size: 9px;
-            margin-left: 6px;
+            font-size: 10px;
+            margin-left: 8px;
+            text-decoration: none;
+            opacity: 0.8;
+        }
+
+        .log-json-toggle:hover {
+            opacity: 1;
             text-decoration: underline;
         }
 
         /* Metrics View */
         .metric-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
         }
 
         .metric-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
         }
 
         .metric-name {
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 11px;
+            color: var(--text-main);
+            margin-bottom: 12px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .metric-chart {
             width: 100%;
-            height: 120px;
-            background: #fafafa;
-            border-radius: 3px;
+            height: 150px;
+            background: var(--bg-hover);
+            border-radius: 6px;
             position: relative;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color);
             cursor: crosshair;
+            padding: 8px;
         }
 
-
         .metric-value {
-            font-size: 16px;
-            color: #2c5aa0;
-            font-weight: bold;
+            font-size: 24px;
+            color: var(--primary);
+            font-weight: 700;
             text-align: center;
-            padding: 8px 0;
+            padding: 16px 0;
         }
 
         .histogram-info {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #eee;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
         }
 
         .histogram-stats {
             display: flex;
             justify-content: space-between;
-            font-size: 9px;
-            color: #666;
-            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
         }
 
         .histogram-stat {
@@ -545,59 +677,65 @@
         }
 
         .histogram-stat-label {
-            color: #999;
-            margin-right: 4px;
+            color: var(--text-muted);
+            margin-right: 6px;
         }
 
         .histogram-stat-value {
             font-weight: 600;
-            color: #2c5aa0;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .histogram-bucket-chart {
             width: 100%;
-            height: 80px;
-            margin-top: 8px;
+            height: 100px;
+            margin-top: 12px;
         }
 
         .refresh-button {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
-            background: #2c5aa0;
+            background: var(--primary);
             border: none;
             color: white;
-            font-size: 18px;
+            font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
         }
 
         .refresh-button:hover {
-            background: #1e4a80;
-            transform: scale(1.1);
+            background: var(--primary-hover);
+            transform: scale(1.1) rotate(180deg);
         }
 
         .loading {
             text-align: center;
-            padding: 30px;
-            color: #666;
-            font-size: 11px;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 13px;
         }
 
         .empty {
             text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 11px;
+            padding: 60px;
+            color: var(--text-muted);
+            font-size: 13px;
         }
 
         .empty-icon {
-            font-size: 30px;
-            margin-bottom: 12px;
+            font-size: 40px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
         canvas {
@@ -606,18 +744,32 @@
         }
 
         h3 {
-            font-size: 12px;
-            margin-top: 16px;
-            margin-bottom: 8px;
-            color: #333;
+            font-size: 14px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* Map Container */
+        .map-container {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="container">
-            <h1 style="cursor: pointer;" onclick="window.location.href='/'">TinyOlly</h1>
-            <div class="subtitle">Minimal Observability Backend - Logs, Metrics & Traces</div>
+            <div>
+                <h1 style="cursor: pointer;" onclick="window.location.href='/'">TinyOlly</h1>
+                <div class="subtitle">Minimal Observability Backend - Logs, Metrics & Traces</div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">🌙</span>
+                <span id="theme-text">Dark Mode</span>
+            </button>
         </div>
     </header>
 
@@ -627,6 +779,7 @@
             <button class="tab active" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
             <button class="tab" data-tab="metrics" onclick="switchTab('metrics', this)">Metrics</button>
             <button class="tab" data-tab="traces" onclick="switchTab('traces', this)">Traces</button>
+            <button class="tab" data-tab="map" onclick="switchTab('map', this)">Service Map</button>
         </div>
 
         <!-- Logs Tab -->
@@ -677,6 +830,19 @@
                 <div class="log-list" id="trace-logs-container"></div>
             </div>
         </div>
+
+        <!-- Service Map Tab -->
+        <div id="map-tab" class="tab-content">
+            <div class="tab-stat">
+                <span class="tab-stat-label">Service Dependencies:</span>
+                <span class="tab-stat-value" id="stat-dependencies">-</span>
+            </div>
+            <div class="map-container"
+                style="background: #fff; border: 1px solid #ddd; border-radius: 4px; height: 600px; position: relative; overflow: hidden;">
+                <canvas id="service-map-canvas"></canvas>
+                <div id="map-loading" class="loading">Loading service map...</div>
+            </div>
+        </div>
     </div>
 
     <!-- Refresh Button -->
@@ -689,18 +855,53 @@
         let autoRefreshInterval = null;
         let expandedLogs = new Set(); // Track which logs have JSON expanded
         let traceJsonOpen = false; // Track if trace JSON view is open
-        
+
         // Generate stable ID for a log entry
         function getLogStableId(log) {
             return `${log.timestamp}-${log.message}`.substring(0, 50);
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+            // Check theme preference
+            const savedTheme = localStorage.getItem('tinyolly-theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                setTheme('dark');
+            }
+
             loadStats();
             loadLogs();
             startAutoRefresh();
         });
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('tinyolly-theme', theme);
+
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                text.textContent = 'Light Mode';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark Mode';
+            }
+
+            // Re-render charts if they exist (to update colors)
+            if (currentTab === 'map') {
+                loadServiceMap();
+            } else if (currentTab === 'metrics') {
+                loadMetrics();
+            }
+        }
 
         function startAutoRefresh() {
             // Auto-refresh for metrics and traces only (logs are manual refresh only)
@@ -710,21 +911,23 @@
                     loadMetrics(); // Refresh metrics every 2 seconds
                 } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
                     loadTraces(); // Only refresh trace list if not viewing detail
+                } else if (currentTab === 'map') {
+                    loadServiceMap();
                 }
             }, 2000); // Refresh every 2 seconds
         }
 
         function switchTab(tab, element) {
             currentTab = tab;
-            
+
             // Update tab buttons - remove active from all, add to clicked
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             element.classList.add('active');
-            
+
             // Update tab content - hide all, show selected
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(tab + '-tab').classList.add('active');
-            
+
             // Load data for tab
             refreshCurrentTab();
         }
@@ -736,6 +939,8 @@
                 loadLogs();
             } else if (currentTab === 'metrics') {
                 loadMetrics();
+            } else if (currentTab === 'map') {
+                loadServiceMap();
             }
         }
 
@@ -755,17 +960,17 @@
             try {
                 const response = await fetch('/api/traces?limit=50');
                 const traces = await response.json();
-                
+
                 const container = document.getElementById('traces-container');
-                
+
                 if (traces.length === 0) {
                     container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No traces yet. Send some data to get started!</div></div>';
                     return;
                 }
-                
+
                 container.innerHTML = traces.map(trace => {
                     const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
-                    
+
                     return `
                         <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
                             <div class="trace-header">
@@ -787,16 +992,16 @@
 
         async function showTraceDetail(traceId) {
             currentTraceId = traceId;
-            
+
             try {
                 const response = await fetch(`/api/traces/${traceId}`);
                 const trace = await response.json();
                 currentTraceData = trace;
-                
+
                 // Hide list, show detail
                 document.getElementById('traces-list-view').style.display = 'none';
                 document.getElementById('trace-detail-view').style.display = 'block';
-                
+
                 // Keep JSON view state if it was open, otherwise hide it
                 const jsonView = document.getElementById('trace-json-view');
                 if (traceJsonOpen && currentTraceData) {
@@ -806,15 +1011,186 @@
                     jsonView.style.display = 'none';
                     traceJsonOpen = false;
                 }
-                
-                // Render waterfall
+                // Keep JSON view state if it was open, otherwise hide it
+                if (!traceJsonOpen) {
+                    document.getElementById('trace-json-view').style.display = 'none';
+                }
+
                 renderWaterfall(trace);
-                
-                // Load correlated logs
                 loadTraceLog(traceId);
             } catch (error) {
                 console.error('Error loading trace detail:', error);
             }
+        }
+
+        // Service Map Visualization
+        let mapNodes = [];
+        let mapEdges = [];
+        let mapSimulation = null;
+
+        async function loadServiceMap() {
+            try {
+                const response = await fetch('/api/service-map?limit=100');
+                const graph = await response.json();
+
+                document.getElementById('stat-dependencies').textContent = graph.edges.length;
+                document.getElementById('map-loading').style.display = 'none';
+
+                renderServiceMap(graph);
+            } catch (error) {
+                console.error('Error loading service map:', error);
+            }
+        }
+
+        function renderServiceMap(graph) {
+            const canvas = document.getElementById('service-map-canvas');
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+
+            // Resize canvas
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Simple force-directed layout simulation
+            // Initialize positions if new
+            if (mapNodes.length === 0 || JSON.stringify(mapNodes.map(n => n.id)) !== JSON.stringify(graph.nodes.map(n => n.id))) {
+                mapNodes = graph.nodes.map(n => ({
+                    ...n,
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: 0,
+                    vy: 0
+                }));
+            } else {
+                // Update existing nodes
+                // This is a simplification, ideally we'd merge
+            }
+
+            mapEdges = graph.edges;
+
+            // Run simulation step
+            for (let i = 0; i < 50; i++) {
+                simulateForceLayout(width, height);
+            }
+
+            // Draw
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw edges
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+
+            mapEdges.forEach(edge => {
+                const source = mapNodes.find(n => n.id === edge.source);
+                const target = mapNodes.find(n => n.id === edge.target);
+
+                if (source && target) {
+                    ctx.beginPath();
+                    ctx.moveTo(source.x, source.y);
+                    ctx.lineTo(target.x, target.y);
+                    ctx.stroke();
+
+                    // Draw arrow
+                    const angle = Math.atan2(target.y - source.y, target.x - source.x);
+                    const headLen = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(target.x - headLen * Math.cos(angle - Math.PI / 6), target.y - headLen * Math.sin(angle - Math.PI / 6));
+                    ctx.lineTo(target.x, target.y);
+                    ctx.lineTo(target.x - headLen * Math.cos(angle + Math.PI / 6), target.y - headLen * Math.sin(angle + Math.PI / 6));
+                    ctx.fillStyle = '#999';
+                    ctx.fill();
+
+                    // Draw label
+                    const midX = (source.x + target.x) / 2;
+                    const midY = (source.y + target.y) / 2;
+                    ctx.fillStyle = '#666';
+                    ctx.font = '10px Arial';
+                    ctx.fillText(edge.value, midX, midY);
+                }
+            });
+
+            // Draw nodes
+            mapNodes.forEach(node => {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
+                ctx.fillStyle = '#2c5aa0';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.label, node.x, node.y + 35);
+            });
+        }
+
+        function simulateForceLayout(width, height) {
+            const k = 100; // Ideal length
+            const repulsion = 5000;
+
+            // Repulsion
+            for (let i = 0; i < mapNodes.length; i++) {
+                for (let j = i + 1; j < mapNodes.length; j++) {
+                    const n1 = mapNodes[i];
+                    const n2 = mapNodes[j];
+                    const dx = n1.x - n2.x;
+                    const dy = n1.y - n2.y;
+                    const d2 = dx * dx + dy * dy + 0.1;
+                    const f = repulsion / d2;
+                    const fx = f * dx / Math.sqrt(d2);
+                    const fy = f * dy / Math.sqrt(d2);
+
+                    n1.vx += fx;
+                    n1.vy += fy;
+                    n2.vx -= fx;
+                    n2.vy -= fy;
+                }
+            }
+
+            // Attraction (Edges)
+            mapEdges.forEach(edge => {
+                const source = mapNodes.find(n => n.id === edge.source);
+                const target = mapNodes.find(n => n.id === edge.target);
+
+                if (source && target) {
+                    const dx = target.x - source.x;
+                    const dy = target.y - source.y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    const f = (d - k) * 0.05;
+                    const fx = f * dx / d;
+                    const fy = f * dy / d;
+
+                    source.vx += fx;
+                    source.vy += fy;
+                    target.vx -= fx;
+                    target.vy -= fy;
+                }
+            });
+
+            // Center gravity
+            mapNodes.forEach(node => {
+                const dx = width / 2 - node.x;
+                const dy = height / 2 - node.y;
+                node.vx += dx * 0.01;
+                node.vy += dy * 0.01;
+
+                // Update position
+                node.x += node.vx;
+                node.y += node.vy;
+
+                // Damping
+                node.vx *= 0.9;
+                node.vy *= 0.9;
+
+                // Bounds
+                node.x = Math.max(20, Math.min(width - 20, node.x));
+                node.y = Math.max(20, Math.min(height - 20, node.y));
+            });
         }
 
         function toggleTraceJSON() {
@@ -831,7 +1207,7 @@
 
         function showLogsForTrace() {
             if (!currentTraceId) return;
-            
+
             // Switch to logs tab
             currentTab = 'logs';
             document.querySelectorAll('.tab').forEach(t => {
@@ -842,7 +1218,7 @@
             });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('logs-tab').classList.add('active');
-            
+
             // Set filter and load logs
             document.getElementById('trace-id-filter').value = currentTraceId;
             loadLogs();
@@ -862,7 +1238,7 @@
             const spans = trace.spans;
             currentTraceData = trace;
             selectedSpanIndex = null;
-            
+
             // Find trace bounds
             const startTimes = spans.map(s => s.startTimeUnixNano || s.start_time || 0);
             const endTimes = spans.map(s => s.endTimeUnixNano || s.end_time || 0);
@@ -870,41 +1246,41 @@
             const traceEnd = Math.max(...endTimes);
             const traceDuration = traceEnd - traceStart;
             const traceDurationMs = traceDuration / 1_000_000;
-            
+
             const container = document.getElementById('trace-detail-container');
             const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
-            
+
             // Create time markers (0%, 25%, 50%, 75%, 100%)
             const timeMarkers = [0, 0.25, 0.5, 0.75, 1.0].map(fraction => {
                 const timeMs = traceDurationMs * fraction;
                 // For the first and last markers, adjust positioning to prevent overflow
                 let className = 'time-marker';
                 let positionStyle = `left: ${fraction * 100}%;`;
-                
+
                 if (fraction === 0) {
                     className += ' first';
                 } else if (fraction === 1.0) {
                     className += ' last';
                     positionStyle = ''; // Will use right: 0 from CSS
                 }
-                
+
                 return `<div class="${className}" style="${positionStyle}">${timeMs.toFixed(2)}ms</div>`;
             }).join('');
-            
+
             container.innerHTML = `
                 <h2>Trace: ${displayTraceId}</h2>
                 <p>${trace.span_count} spans - ${traceDurationMs.toFixed(2)}ms total</p>
                 <div class="waterfall">
                     ${spans.map((span, idx) => {
-                        const startTime = span.startTimeUnixNano || span.start_time || 0;
-                        const endTime = span.endTimeUnixNano || span.end_time || 0;
-                        const duration = endTime - startTime;
-                        const offset = startTime - traceStart;
-                        
-                        const leftPercent = (offset / traceDuration) * 100;
-                        const widthPercent = (duration / traceDuration) * 100;
-                        
-                        return `
+                const startTime = span.startTimeUnixNano || span.start_time || 0;
+                const endTime = span.endTimeUnixNano || span.end_time || 0;
+                const duration = endTime - startTime;
+                const offset = startTime - traceStart;
+
+                const leftPercent = (offset / traceDuration) * 100;
+                const widthPercent = (duration / traceDuration) * 100;
+
+                return `
                             <div class="span-row">
                                 <div class="span-info">
                                     <div class="span-name" title="${span.name}">${span.name}</div>
@@ -917,7 +1293,7 @@
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
                 <div class="time-axis">
                     <div class="time-markers">
@@ -938,10 +1314,10 @@
 
         function showSpanJson(spanIndex) {
             if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
-            
+
             const span = currentTraceData.spans[spanIndex];
             const container = document.getElementById('span-json-container');
-            
+
             // Update selected state
             document.querySelectorAll('.span-bar').forEach((bar, idx) => {
                 if (idx === spanIndex) {
@@ -950,9 +1326,9 @@
                     bar.classList.remove('selected');
                 }
             });
-            
+
             selectedSpanIndex = spanIndex;
-            
+
             container.innerHTML = `
                 <div class="span-json-container">
                     <div class="span-json-header">
@@ -962,7 +1338,7 @@
                     <pre class="json-content">${JSON.stringify(span, null, 2)}</pre>
                 </div>
             `;
-            
+
             // Scroll to the JSON view
             setTimeout(() => {
                 const jsonContainer = document.querySelector('.span-json-container');
@@ -984,18 +1360,18 @@
         async function loadLogs() {
             const traceIdFilter = document.getElementById('trace-id-filter').value.trim();
             const url = traceIdFilter ? `/api/logs?trace_id=${traceIdFilter}` : '/api/logs?limit=100';
-            
+
             try {
                 const response = await fetch(url);
                 const logs = await response.json();
-                
+
                 const container = document.getElementById('logs-container');
-                
+
                 if (logs.length === 0) {
                     container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No logs found</div></div>';
                     return;
                 }
-                
+
                 container.innerHTML = logs.map((log, idx) => {
                     const stableId = getLogStableId(log);
                     const logId = `log-${idx}-${stableId.replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -1003,13 +1379,13 @@
                     const severity = log.severity || 'INFO';
                     const traceId = log.trace_id || log.traceId || '';
                     const message = log.message || '';
-                    
+
                     // Check if this log's JSON should be expanded
                     const isExpanded = expandedLogs.has(stableId);
-                    
+
                     // Remove leading zeros but keep at least one digit
                     const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
-                    
+
                     return `
                         <div class="log-item">
                             <div>
@@ -1046,24 +1422,24 @@
             try {
                 const response = await fetch(`/api/logs?trace_id=${traceId}`);
                 const logs = await response.json();
-                
+
                 const container = document.getElementById('trace-logs-container');
-                
+
                 if (logs.length === 0) {
                     container.innerHTML = '<div class="empty" style="padding: 12px;">No logs for this trace</div>';
                     return;
                 }
-                
+
                 container.innerHTML = logs.map((log, idx) => {
                     const logId = `trace-log-${idx}`;
                     const timestamp = new Date(log.timestamp * 1000).toISOString();
                     const severity = log.severity || 'INFO';
                     const message = log.message || '';
                     const traceId = log.trace_id || log.traceId || '';
-                    
+
                     // Remove leading zeros but keep at least one digit
                     const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
-                    
+
                     return `
                         <div class="log-item">
                             <div>
@@ -1087,7 +1463,7 @@
         function showTraceFromLog(traceId) {
             // Reset trace JSON state when navigating from log
             traceJsonOpen = false;
-            
+
             // Switch to traces tab
             currentTab = 'traces';
             document.querySelectorAll('.tab').forEach(t => {
@@ -1098,7 +1474,7 @@
             });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('traces-tab').classList.add('active');
-            
+
             // Show trace detail
             setTimeout(() => showTraceDetail(traceId), 100);
         }
@@ -1118,25 +1494,25 @@
             try {
                 const response = await fetch('/api/metrics');
                 const metricNames = await response.json();
-                
+
                 const container = document.getElementById('metrics-container');
-                
+
                 if (metricNames.length === 0) {
                     container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
                     currentMetricNames = [];
                     return;
                 }
-                
+
                 // Check if metric list has changed
                 const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
-                
+
                 if (metricsChanged) {
                     // Destroy old charts
                     Object.values(metricCharts).forEach(chart => chart.destroy());
                     Object.values(histogramBucketCharts).forEach(chart => chart.destroy());
                     metricCharts = {};
                     histogramBucketCharts = {};
-                    
+
                     console.log('Metrics list changed, recreating DOM');
                     currentMetricNames = metricNames;
                     container.innerHTML = metricNames.map(name => `
@@ -1170,13 +1546,13 @@
                             </div>
                         </div>
                     `).join('');
-                    
+
                     // Initialize charts
                     for (const name of metricNames) {
                         initMetricChart(name);
                     }
                 }
-                
+
                 // Update data for each metric
                 for (const name of metricNames) {
                     updateMetricData(name);
@@ -1195,9 +1571,9 @@
             const chartId = `metric-${name.replace(/\./g, '-')}`;
             const canvas = document.querySelector(`#${chartId} canvas`);
             if (!canvas) return;
-            
+
             lastTimestamps[name] = null; // Initialize timestamp tracking
-            
+
             const ctx = canvas.getContext('2d');
             metricCharts[name] = new Chart(ctx, {
                 type: 'line',
@@ -1228,7 +1604,7 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     return 'Value: ' + context.parsed.y.toFixed(2);
                                 }
                             }
@@ -1259,34 +1635,34 @@
             try {
                 const response = await fetch(`/api/metrics/${name}`);
                 const data = await response.json();
-                
+
                 if (data.data.length === 0 || !metricCharts[name]) return;
-                
+
                 const chart = metricCharts[name];
-                
+
                 // Get all new points since last update
                 const lastTimestamp = lastTimestamps[name] || 0;
                 const newPoints = data.data.filter(point => point.timestamp > lastTimestamp);
-                
+
                 if (newPoints.length === 0) return; // No new data
-                
+
                 // Check if this is a histogram metric
                 const latestPoint = data.data[data.data.length - 1];
                 const isHistogram = latestPoint && latestPoint.histogram;
-                
+
                 // Show/hide histogram info
                 const histogramInfoId = `histogram-${name.replace(/\./g, '-')}`;
                 const histogramInfo = document.getElementById(histogramInfoId);
                 if (histogramInfo) {
                     histogramInfo.style.display = isHistogram ? 'block' : 'none';
                 }
-                
+
                 // Add all new points
                 let addedCount = 0;
                 for (const point of newPoints) {
                     const timestamp = new Date(point.timestamp * 1000).toLocaleTimeString();
                     const value = parseFloat(point.value);
-                    
+
                     // For metrics with labels, aggregate by taking the sum of all label values at this timestamp
                     const existingIndex = chart.data.labels.indexOf(timestamp);
                     if (existingIndex >= 0) {
@@ -1299,27 +1675,27 @@
                         addedCount++;
                     }
                 }
-                
+
                 // Update last timestamp to the latest point
                 if (newPoints.length > 0) {
                     lastTimestamps[name] = Math.max(...newPoints.map(p => p.timestamp));
                 }
-                
+
                 console.log(`${name}: Added ${addedCount} new points`);
-                
+
                 // Keep only last MAX_POINTS
                 while (chart.data.labels.length > MAX_POINTS) {
                     chart.data.labels.shift();
                     chart.data.datasets[0].data.shift();
                 }
-                
+
                 chart.update();
-                
+
                 // Update histogram visualization if applicable
                 if (isHistogram && latestPoint.histogram) {
                     updateHistogramDisplay(name, latestPoint.histogram);
                 }
-                
+
             } catch (error) {
                 console.error(`Error updating metric ${name}:`, error);
             }
@@ -1327,7 +1703,7 @@
 
         function updateHistogramDisplay(name, histogramData) {
             const safeName = name.replace(/\./g, '-');
-            
+
             // Update stats
             if (histogramData.min !== null && histogramData.min !== undefined) {
                 document.getElementById(`hist-min-${safeName}`).textContent = histogramData.min.toFixed(2);
@@ -1341,7 +1717,7 @@
             if (histogramData.count !== null && histogramData.count !== undefined) {
                 document.getElementById(`hist-count-${safeName}`).textContent = histogramData.count;
             }
-            
+
             // Update bucket chart
             if (histogramData.buckets && histogramData.buckets.length > 0) {
                 updateHistogramBuckets(name, histogramData.buckets);
@@ -1353,27 +1729,27 @@
             const containerId = `histogram-bucket-${safeName}`;
             const container = document.getElementById(containerId);
             if (!container) return;
-            
+
             // Get or create canvas
             let canvas = container.querySelector('canvas');
             if (!canvas) {
                 canvas = document.createElement('canvas');
                 container.appendChild(canvas);
             }
-            
+
             // Destroy existing chart if it exists
             if (histogramBucketCharts[name]) {
                 histogramBucketCharts[name].destroy();
             }
-            
+
             // Prepare bucket labels and counts
             // In OTLP: bucket i contains values in range [explicit_bounds[i-1], explicit_bounds[i])
             // Bucket 0 is (-inf, explicit_bounds[0]), last bucket is [explicit_bounds[N-1], +inf)
             const labels = buckets.map((bucket, i) => {
                 if (bucket.bound === null) {
                     // This is the +Inf bucket (last bucket)
-                    if (i > 0 && buckets[i-1].bound !== null) {
-                        return `≥${buckets[i-1].bound}`;
+                    if (i > 0 && buckets[i - 1].bound !== null) {
+                        return `≥${buckets[i - 1].bound}`;
                     }
                     return '+Inf';
                 } else if (i === 0) {
@@ -1381,7 +1757,7 @@
                     return `<${bucket.bound}`;
                 } else {
                     // Middle buckets: [prev_bound, bound)
-                    const prevBound = buckets[i-1].bound;
+                    const prevBound = buckets[i - 1].bound;
                     if (prevBound === null) {
                         return `<${bucket.bound}`;
                     }
@@ -1389,7 +1765,7 @@
                 }
             });
             const counts = buckets.map(b => b.count);
-            
+
             // Create bar chart
             const ctx = canvas.getContext('2d');
             histogramBucketCharts[name] = new Chart(ctx, {
@@ -1436,4 +1812,5 @@
         }
     </script>
 </body>
+
 </html>

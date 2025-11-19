@@ -69,7 +69,7 @@ order_value = meter.create_histogram(
 app = Flask(__name__)
 
 # Backend service URL
-BACKEND_URL = "http://backend-service:5000"
+BACKEND_URL = "http://demo-backend:5000"
 
 def log_with_trace(level, message):
     """Helper to log with trace context via OpenTelemetry"""

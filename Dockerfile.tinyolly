@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r tinyolly-requirements.txt
 
 # Copy application
 COPY tinyolly.py .
+COPY storage.py .
 COPY templates/ templates/
 
 # Expose port
