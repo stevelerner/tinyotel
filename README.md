@@ -61,6 +61,32 @@ open http://localhost:5002
 
 ![Logs](images/logs.png)
 
+## Bring Your Own App
+
+Want to use TinyOlly with your own application? You can start just the observability backend without the demo apps.
+
+**1. Start Core Services:**
+```bash
+./00-start-tinyolly-core.sh
+```
+This starts:
+- **OTel Collector**: Listening on `localhost:4317` (gRPC) and `localhost:4318` (HTTP)
+- **TinyOlly UI**: `http://localhost:5002`
+- **Redis & Receiver**: Backend storage
+
+**2. Instrument Your App:**
+Point your OpenTelemetry exporter to `localhost:4317` (gRPC) or `localhost:4318` (HTTP).
+
+Example (Python):
+```python
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+# ... setup tracer ...
+span_exporter = OTLPSpanExporter(endpoint="http://localhost:4317")
+```
+
+**3. View Your Telemetry:**
+Open `http://localhost:5002` to see your app's traces and metrics!
+
 ## Advanced: Console Viewing
 
 Want to see raw telemetry in the terminal? Use console mode:
