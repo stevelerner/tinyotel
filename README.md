@@ -77,13 +77,6 @@ This starts:
 **2. Instrument Your App:**
 Point your OpenTelemetry exporter to `localhost:4317` (gRPC) or `localhost:4318` (HTTP).
 
-Example (Python):
-```python
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-# ... setup tracer ...
-span_exporter = OTLPSpanExporter(endpoint="http://localhost:4317")
-```
-
 **3. View Your Telemetry:**
 Open `http://localhost:5002` to see your app's traces and metrics!
 
