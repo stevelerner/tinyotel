@@ -1,4 +1,4 @@
-# TinyOlly - Learn Observability by Building It
+# TinyOlly - An Observability Platform For Your Desktop Dev Environment
 
 A **minimal observability backend built from scratch** to observe logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
 
