@@ -837,7 +837,17 @@
                 <button class="back-button" onclick="showTracesList()">Back to Traces</button>
                 <button class="view-json-button" onclick="toggleTraceJSON()">View Trace JSON</button>
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
-                <div id="trace-json-view" class="json-view" style="display: none;"></div>
+                <div id="trace-json-view" class="json-view" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button onclick="copyTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            📋 Copy JSON
+                        </button>
+                        <button onclick="downloadTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            💾 Download JSON
+                        </button>
+                    </div>
+                    <pre id="trace-json-content"></pre>
+                </div>
                 <div class="trace-detail" id="trace-detail-container"></div>
                 <h3>Correlated Logs</h3>
                 <div class="log-list" id="trace-logs-container"></div>
@@ -1304,14 +1314,38 @@
 
         function toggleTraceJSON() {
             const jsonView = document.getElementById('trace-json-view');
+            const jsonContent = document.getElementById('trace-json-content');
             if (jsonView.style.display === 'none') {
                 jsonView.style.display = 'block';
-                jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
+                jsonContent.textContent = JSON.stringify(currentTraceData, null, 2);
                 traceJsonOpen = true;
             } else {
                 jsonView.style.display = 'none';
                 traceJsonOpen = false;
             }
+        }
+
+        function copyTraceJSON() {
+            const jsonContent = document.getElementById('trace-json-content').textContent;
+            navigator.clipboard.writeText(jsonContent).then(() => {
+                alert('Trace JSON copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        function downloadTraceJSON() {
+            const jsonContent = document.getElementById('trace-json-content').textContent;
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `trace-${currentTraceId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function showLogsForTrace() {
@@ -1507,6 +1541,14 @@
                             </div>
                             <div class="log-message">${message}</div>
                             <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
+                                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                    <button onclick="copyLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                        📋 Copy
+                                    </button>
+                                    <button onclick="downloadLogJSON('${logId}', '${timestamp}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                        💾 Download
+                                    </button>
+                                </div>
                                 <pre>${JSON.stringify(log, null, 2)}</pre>
                             </div>
                         </div>
@@ -1527,6 +1569,33 @@
                 jsonView.style.display = 'none';
                 expandedLogs.delete(stableId);
             }
+        }
+
+        function copyLogJSON(logId) {
+            const jsonView = document.getElementById(logId);
+            const preElement = jsonView.querySelector('pre');
+            const jsonContent = preElement.textContent;
+            navigator.clipboard.writeText(jsonContent).then(() => {
+                alert('Log JSON copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        function downloadLogJSON(logId, timestamp) {
+            const jsonView = document.getElementById(logId);
+            const preElement = jsonView.querySelector('pre');
+            const jsonContent = preElement.textContent;
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `log-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         async function loadTraceLog(traceId) {
