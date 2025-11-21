@@ -1,6 +1,6 @@
 # TinyOlly - An Observability Platform For Your Desktop Dev Environment
 
-A **minimal observability system built from scratch** to visualize and correlate logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
+A **lightweight observability system built from scratch** to visualize and correlate logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
 
 Think of TinyOlly as a tool to livetail your metrics/traces/logs during development with visuals and tools like a full production observability system- but is lighter and runs locally.
 
@@ -137,3 +137,20 @@ You can also run TinyOlly on Kubernetes using Minikube.
     ```bash
     ./k8s/cleanup.sh
     ```
+
+### Demo Applications (Optional)
+
+To see TinyOlly in action with instrumented microservices:
+
+```bash
+cd k8s-demo
+./deploy.sh
+```
+
+Generate traffic to create traces, metrics, and logs:
+
+```bash
+./generate-traffic.sh
+```
+
+The demo includes two microservices that showcase distributed tracing across service boundaries. See [k8s-demo/README.md](k8s-demo/README.md) for details.

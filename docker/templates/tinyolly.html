@@ -718,6 +718,19 @@
             transform: scale(1.1) rotate(180deg);
         }
 
+        .refresh-button:active {
+            transform: scale(0.95);
+        }
+
+        .refresh-button.refreshing {
+            animation: spin 1s linear;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -845,14 +858,17 @@
         </div>
     </div>
 
-    <!-- Refresh Button -->
-    <button class="refresh-button" onclick="refreshCurrentTab()" title="Refresh">↻</button>
+    <!-- Auto-Refresh Toggle Button -->
+    <button class="refresh-button" onclick="toggleAutoRefresh()" title="Pause auto-refresh" id="auto-refresh-btn">
+        <span id="refresh-icon">⏸</span>
+    </button>
 
     <script>
-        let currentTab = 'logs';
+        let currentTab = localStorage.getItem('tinyolly-active-tab') || 'logs';
         let currentTraceId = null;
         let currentTraceData = null;
         let autoRefreshInterval = null;
+        let autoRefreshEnabled = localStorage.getItem('tinyolly-auto-refresh') !== 'false'; // Default to true
         let expandedLogs = new Set(); // Track which logs have JSON expanded
         let traceJsonOpen = false; // Track if trace JSON view is open
 
@@ -869,9 +885,18 @@
                 setTheme('dark');
             }
 
+            // Restore last active tab
+            restoreActiveTab();
+
+            // Update button state based on saved preference
+            updateAutoRefreshButton();
+
             loadStats();
-            loadLogs();
-            startAutoRefresh();
+            
+            // Start auto-refresh if enabled
+            if (autoRefreshEnabled) {
+                startAutoRefresh();
+            }
         });
 
         function toggleTheme() {
@@ -904,21 +929,56 @@
         }
 
         function startAutoRefresh() {
-            // Auto-refresh for metrics and traces only (logs are manual refresh only)
+            // Stop any existing interval first
+            stopAutoRefresh();
+            
+            // Auto-refresh for all tabs
+            console.log('Auto-refresh started');
             autoRefreshInterval = setInterval(() => {
+                console.log('Auto-refresh tick - current tab:', currentTab);
                 loadStats();
                 if (currentTab === 'metrics') {
-                    loadMetrics(); // Refresh metrics every 2 seconds
+                    console.log('Auto-refreshing metrics');
+                    loadMetrics();
                 } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
+                    console.log('Auto-refreshing traces');
                     loadTraces(); // Only refresh trace list if not viewing detail
+                } else if (currentTab === 'logs') {
+                    console.log('Auto-refreshing logs');
+                    loadLogs(); // Auto-refresh logs too
                 } else if (currentTab === 'map') {
+                    console.log('Auto-refreshing service map');
                     loadServiceMap();
                 }
-            }, 2000); // Refresh every 2 seconds
+            }, 3000); // Refresh every 3 seconds
+        }
+
+        function restoreActiveTab() {
+            // Activate the saved tab or default to logs
+            const savedTab = localStorage.getItem('tinyolly-active-tab') || 'logs';
+            currentTab = savedTab;
+            
+            // Update UI to show correct tab
+            document.querySelectorAll('.tab').forEach(t => {
+                if (t.textContent.toLowerCase().includes(savedTab)) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(savedTab + '-tab').classList.add('active');
+            
+            // Load data for the restored tab
+            refreshCurrentTab();
         }
 
         function switchTab(tab, element) {
             currentTab = tab;
+            
+            // Save tab selection
+            localStorage.setItem('tinyolly-active-tab', tab);
 
             // Update tab buttons - remove active from all, add to clicked
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -933,14 +993,61 @@
         }
 
         function refreshCurrentTab() {
+            console.log('Refreshing tab:', currentTab);
+            
+            // Refresh stats
+            loadStats();
+            
+            // Load current tab data
             if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
+                console.log('Loading traces...');
                 loadTraces();
             } else if (currentTab === 'logs') {
+                console.log('Loading logs...');
                 loadLogs();
             } else if (currentTab === 'metrics') {
+                console.log('Loading metrics...');
                 loadMetrics();
             } else if (currentTab === 'map') {
+                console.log('Loading service map...');
                 loadServiceMap();
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            localStorage.setItem('tinyolly-auto-refresh', autoRefreshEnabled);
+            
+            if (autoRefreshEnabled) {
+                console.log('Auto-refresh enabled');
+                startAutoRefresh();
+            } else {
+                console.log('Auto-refresh paused');
+                stopAutoRefresh();
+            }
+            
+            updateAutoRefreshButton();
+        }
+
+        function updateAutoRefreshButton() {
+            const btn = document.getElementById('auto-refresh-btn');
+            const icon = document.getElementById('refresh-icon');
+            
+            if (autoRefreshEnabled) {
+                icon.textContent = '⏸';
+                btn.title = 'Pause auto-refresh';
+                btn.style.background = 'var(--primary)';
+            } else {
+                icon.textContent = '▶';
+                btn.title = 'Resume auto-refresh';
+                btn.style.background = '#6b7280';
+            }
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
             }
         }
 

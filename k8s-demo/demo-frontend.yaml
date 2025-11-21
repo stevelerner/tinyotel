@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-frontend
+  labels:
+    app: demo-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-frontend
+  template:
+    metadata:
+      labels:
+        app: demo-frontend
+    spec:
+      containers:
+      - name: demo-frontend
+        image: demo-frontend:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+        env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "demo-frontend"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-frontend
+spec:
+  type: LoadBalancer
+  selector:
+    app: demo-frontend
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5000
+
