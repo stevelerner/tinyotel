@@ -1,20 +1,22 @@
 # TinyOlly - An Observability Platform For Your Desktop Dev Environment
 
-A **minimal observability backend built from scratch** to observe logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
+A **minimal observability system built from scratch** to visualize and correlate logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
 
-Think of TinyOlly as a tool to livetail your telemetry with visuals like a full production observability tool... To be used while you are developing your application so that you don't have to use a full external observability stack.  
+Think of TinyOlly as a tool to livetail your metrics/traces/logs during development with visuals and tools like a full production observability system- but is lighter and runs locally.
 
-Includes a demo two Flask microservices auto instrumenated for tracing and using OpenTelemetry Python SDK to export logs and metrics to an OpenTelemetry collector. This is the most modern design for taking advantage of OpenTelemetry using easy auto-instrumentation for traces yet writing properly formatted logs and metrics using the Otel SDK.
+Included is a demo app with two Flask microservices which are auto instrumenated for tracing and also utilize the OpenTelemetry Python SDK to export logs and metrics to the OpenTelemetry collector. This is the proper way to instrument an application for observability.  
 
 ## Quick Start
 
 > **Note:** Built and tested on Docker Desktop for Mac.
 
+The Docker-based implementation has been moved to the `docker/` directory.
+
 ### Option 1: Full TinyOlly Demo
-Run the complete stack with the demo frontend, backend, and TinyOlly UI.
+Run the otel collector, TinyOlly receiver, storage, and UI, and the demo app with two Flask microservices.  
 
 ```bash
-cd tinyolly-demo
+cd docker/tinyolly-demo
 ./01-start.sh
 ```
 
@@ -30,23 +32,15 @@ Stop the demo:
 ./03-stop.sh
 ```
 
-### Option 2: Console Demo
-Run the demo app with the OpenTelemetry Collector outputting to the console (no UI).
+### Option 2: TinyOlly Core w/ UI (Bring Your Own App)
+Start only the TinyOlly observability backend and UI to use with your own application.
+- Your application sends OpenTelemetry metrics/logs/traces to TinyOlly's OTel Collector destination: `http://otel-collector:4317` or `http://otel-collector:4318`.  
+- For traces you can use manual or auto instrumentation. Logs and metrics should use the OpenTelemetry SDK.  
+- The collector sends the data to TinyOlly's OTLP receiver. The receiver parses the data and stores it in Redis. 
+- The TinyOlly UI then displays the telemetry.  
 
 ```bash
-cd tinyolly-console-demo
-./01-start.sh
-```
-
-Generate traffic and view logs/traces/metrics using the provided scripts in the folder.
-
-### Option 3: Core Only (Bring Your Own App)
-Start only the TinyOlly observability backend to use with your own application.
-- Your application should send its OpenTelemetry data to TinyOlly's OTel Collector destination: `http://otel-collector:4317` or `http://otel-collector:4318`. For traces you can use manual or auto instrumentation. Logs and metrics should use the OpenTelemetry SDK.  
-- The collector will send the data to TinyOlly's OTLP receiver. The receiver will parse the data and store it in Redis. 
-- The TinyOlly UI will then display the telemetry.  
-
-```bash
+cd docker
 ./01-start-core.sh
 ```
 
@@ -88,20 +82,3 @@ Demo Frontend  ←→  Demo Backend (distributed tracing)
 - `/process-order` - Complex multi-service flow (inventory, pricing, payment)
 - `/hello`, `/calculate`, `/error` - Simple endpoints
 - All endpoints generate logs, metrics, and traces
-
-**Code Breakdown:**
-**Code Breakdown:**
-- **Demo Frontend** (`tinyolly-demo/app.py`): ~290 lines
-  - Flask app with auto-instrumentation
-- **Demo Backend** (`tinyolly-demo/backend-service.py`): ~180 lines
-  - Microservice for distributed tracing demo
-- **Tinyolly OTLP Receiver** (`tinyolly-otlp-receiver.py`): ~270 lines
-  - gRPC/HTTP server that parses OTLP and stores in Redis
-- **TinyOlly UI** (`tinyolly-ui.py`): ~170 lines
-  - Flask backend for the dashboard
-- **Storage Engine** (`tinyolly_redis_storage.py`): ~240 lines
-  - Shared Redis logic for traces, metrics, and logs
-- **Dashboard UI** (`templates/index.html`): ~1,270 lines
-  - Single-file HTML/JS/CSS with Chart.js
-
-No heavy frameworks - just Flask, Redis, Chart.js, and clear, commented code.
