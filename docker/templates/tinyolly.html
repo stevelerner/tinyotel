@@ -1331,19 +1331,11 @@
             const feedback = document.getElementById('copy-trace-feedback');
             navigator.clipboard.writeText(jsonContent).then(() => {
                 feedback.style.display = 'inline';
-                setTimeout(() => {
-                    feedback.style.display = 'none';
-                }, 2000);
             }).catch(err => {
                 console.error('Failed to copy:', err);
                 feedback.textContent = '✗ Copy failed';
                 feedback.style.color = 'var(--error)';
                 feedback.style.display = 'inline';
-                setTimeout(() => {
-                    feedback.style.display = 'none';
-                    feedback.textContent = '✓ Copied!';
-                    feedback.style.color = 'var(--success)';
-                }, 2000);
             });
         }
 
@@ -1588,19 +1580,16 @@
             const preElement = jsonView.querySelector('pre');
             const jsonContent = preElement.textContent;
             const button = event.target;
-            const originalText = button.textContent;
             
             navigator.clipboard.writeText(jsonContent).then(() => {
                 button.textContent = '✓ Copied!';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                }, 2000);
+                button.style.background = 'var(--success)';
+                button.style.color = 'white';
             }).catch(err => {
                 console.error('Failed to copy:', err);
                 button.textContent = '✗ Failed';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                }, 2000);
+                button.style.background = 'var(--error)';
+                button.style.color = 'white';
             });
         }
 
