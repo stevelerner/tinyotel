@@ -838,13 +838,14 @@
                 <button class="view-json-button" onclick="toggleTraceJSON()">View Trace JSON</button>
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
                 <div id="trace-json-view" class="json-view" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <button onclick="copyTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <button onclick="event.stopPropagation(); copyTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                             📋 Copy JSON
                         </button>
-                        <button onclick="downloadTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                        <button onclick="event.stopPropagation(); downloadTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                             💾 Download JSON
                         </button>
+                        <span id="copy-trace-feedback" style="color: var(--success); font-size: 14px; display: none;">✓ Copied!</span>
                     </div>
                     <pre id="trace-json-content"></pre>
                 </div>
@@ -1327,11 +1328,22 @@
 
         function copyTraceJSON() {
             const jsonContent = document.getElementById('trace-json-content').textContent;
+            const feedback = document.getElementById('copy-trace-feedback');
             navigator.clipboard.writeText(jsonContent).then(() => {
-                alert('Trace JSON copied to clipboard!');
+                feedback.style.display = 'inline';
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                }, 2000);
             }).catch(err => {
                 console.error('Failed to copy:', err);
-                alert('Failed to copy to clipboard');
+                feedback.textContent = '✗ Copy failed';
+                feedback.style.color = 'var(--error)';
+                feedback.style.display = 'inline';
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                    feedback.textContent = '✓ Copied!';
+                    feedback.style.color = 'var(--success)';
+                }, 2000);
             });
         }
 
@@ -1542,10 +1554,10 @@
                             <div class="log-message">${message}</div>
                             <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
                                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                                    <button onclick="copyLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                    <button onclick="event.stopPropagation(); copyLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                                         📋 Copy
                                     </button>
-                                    <button onclick="downloadLogJSON('${logId}', '${timestamp}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                    <button onclick="event.stopPropagation(); downloadLogJSON('${logId}', '${timestamp}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                                         💾 Download
                                     </button>
                                 </div>
@@ -1575,11 +1587,20 @@
             const jsonView = document.getElementById(logId);
             const preElement = jsonView.querySelector('pre');
             const jsonContent = preElement.textContent;
+            const button = event.target;
+            const originalText = button.textContent;
+            
             navigator.clipboard.writeText(jsonContent).then(() => {
-                alert('Log JSON copied to clipboard!');
+                button.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
             }).catch(err => {
                 console.error('Failed to copy:', err);
-                alert('Failed to copy to clipboard');
+                button.textContent = '✗ Failed';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
             });
         }
 
