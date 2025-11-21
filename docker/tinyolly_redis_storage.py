@@ -14,11 +14,13 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 # K8s creates REDIS_PORT with value like "tcp://10.107.63.144:6379"
 REDIS_PORT = int(os.getenv('REDIS_PORT_NUMBER', os.getenv('REDIS_PORT_OVERRIDE', '6379')))
 TTL_SECONDS = int(os.getenv('REDIS_TTL', 1800))  # 30 minutes default (configurable)
+MAX_METRIC_CARDINALITY = int(os.getenv('MAX_METRIC_CARDINALITY', 1000))  # Prevent cardinality explosion
 
 class Storage:
-    def __init__(self, host=REDIS_HOST, port=REDIS_PORT, ttl=TTL_SECONDS):
+    def __init__(self, host=REDIS_HOST, port=REDIS_PORT, ttl=TTL_SECONDS, max_cardinality=MAX_METRIC_CARDINALITY):
         self.client = redis.Redis(host=host, port=port, decode_responses=True)
         self.ttl = ttl
+        self.max_cardinality = max_cardinality
 
     def is_connected(self):
         try:
@@ -154,11 +156,24 @@ class Storage:
     # ============================================
 
     def store_metric(self, metric):
-        """Store a metric"""
+        """Store a metric with cardinality protection"""
         name = metric.get('name')
         timestamp = metric.get('timestamp', time.time())
         
         if not name:
+            return
+        
+        # Check cardinality limit before adding new metric
+        current_count = self.client.scard('metric_names')
+        is_existing = self.client.sismember('metric_names', name)
+        
+        if not is_existing and current_count >= self.max_cardinality:
+            # Drop this metric to prevent cardinality explosion
+            # Log to a separate key for monitoring
+            self.client.incr('metric_dropped_count')
+            self.client.expire('metric_dropped_count', self.ttl)
+            self.client.sadd('metric_dropped_names', name)
+            self.client.expire('metric_dropped_names', 3600)  # Keep for 1 hour for debugging
             return
             
         # Store in time-series sorted set
@@ -175,9 +190,23 @@ class Storage:
         self.client.sadd('metric_names', name)
         self.client.expire('metric_names', self.ttl)
 
-    def get_metric_names(self):
-        """Get all metric names"""
-        return list(self.client.smembers('metric_names'))
+    def get_metric_names(self, limit=None):
+        """Get metric names, optionally limited and sorted"""
+        names = list(self.client.smembers('metric_names'))
+        names.sort()  # Alphabetical sorting
+        
+        if limit and limit > 0:
+            return names[:limit]
+        return names
+    
+    def get_cardinality_stats(self):
+        """Get metric cardinality statistics"""
+        return {
+            'current': self.client.scard('metric_names'),
+            'max': self.max_cardinality,
+            'dropped_count': int(self.client.get('metric_dropped_count') or 0),
+            'dropped_names': list(self.client.smembers('metric_dropped_names'))
+        }
 
     def get_metric_data(self, name, start_time, end_time):
         """Get metric data points for a time range"""
@@ -231,9 +260,12 @@ class Storage:
     # ============================================
 
     def get_stats(self):
-        """Get overall stats"""
+        """Get overall stats including cardinality"""
+        cardinality = self.get_cardinality_stats()
         return {
             'traces': self.client.zcard('trace_index'),
             'logs': self.client.zcard('log_index'),
-            'metrics': self.client.scard('metric_names')
+            'metrics': cardinality['current'],
+            'metrics_max': cardinality['max'],
+            'metrics_dropped': cardinality['dropped_count']
         }

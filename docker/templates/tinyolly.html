@@ -609,23 +609,75 @@
         }
 
         /* Metrics View */
-        .metric-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+        .metric-table {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
-        .metric-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: var(--shadow);
+        .metric-row {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-header {
+            display: grid;
+            grid-template-columns: 1fr auto auto 40px;
+            gap: 15px;
+            padding: 12px 15px;
+            cursor: pointer;
+            align-items: center;
+        }
+
+        .metric-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .metric-row.expanded .metric-header {
+            background: var(--bg-hover);
+        }
+
+        .metric-row-name {
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 14px;
+        }
+
+        .metric-row-value {
+            font-family: monospace;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .metric-row-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .metric-expand-icon {
+            color: var(--text-muted);
+            font-size: 18px;
             transition: transform 0.2s;
         }
 
-        .metric-card:hover {
-            transform: translateY(-2px);
+        .metric-row.expanded .metric-expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .metric-chart-container {
+            display: none;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+
+        .metric-row.expanded .metric-chart-container {
+            display: block;
         }
 
         .metric-name {
@@ -817,7 +869,12 @@
                 <span class="tab-stat-label">Total Metrics:</span>
                 <span class="tab-stat-value" id="stat-metrics">-</span>
             </div>
-            <div class="metric-list" id="metrics-container">
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="metric-search" placeholder="Search metrics..." 
+                       onkeyup="filterMetrics()" 
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
+            </div>
+            <div class="metric-table" id="metrics-container">
                 <div class="loading">Loading metrics...</div>
             </div>
         </div>
@@ -1068,7 +1125,16 @@
                 const stats = await response.json();
                 document.getElementById('stat-traces').textContent = stats.traces;
                 document.getElementById('stat-logs').textContent = stats.logs;
-                document.getElementById('stat-metrics').textContent = stats.metrics;
+                
+                // Show cardinality info for metrics
+                let metricsText = stats.metrics;
+                if (stats.metrics_max) {
+                    metricsText += ` / ${stats.metrics_max}`;
+                }
+                if (stats.metrics_dropped && stats.metrics_dropped > 0) {
+                    metricsText += ` (${stats.metrics_dropped} dropped)`;
+                }
+                document.getElementById('stat-metrics').textContent = metricsText;
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
@@ -1680,77 +1746,206 @@
         let metricCharts = {}; // Store Chart.js instances
         let histogramBucketCharts = {}; // Store bucket bar charts for histograms
 
+        let expandedMetrics = new Set(); // Track which metrics are expanded
+        let metricLatestValues = {}; // Store latest values for each metric
+
         async function loadMetrics() {
             try {
-                const response = await fetch('/api/metrics');
-                const metricNames = await response.json();
+                const response = await fetch('/api/metrics?limit=500');
+                const data = await response.json();
+                
+                const metricNames = data.names || [];
+                const cardinality = data.cardinality || {};
 
                 const container = document.getElementById('metrics-container');
 
+                // Show cardinality warning if needed
+                const cardinalityPercent = (cardinality.current / cardinality.max) * 100;
+                let warningHtml = '';
+                
+                if (cardinalityPercent > 90) {
+                    warningHtml = `<div style="padding: 10px; background: #ff4444; color: white; border-radius: 4px; margin-bottom: 10px;">
+                        ⚠️ High cardinality: ${cardinality.current}/${cardinality.max} metrics (${cardinalityPercent.toFixed(0)}%)
+                        ${cardinality.dropped_count > 0 ? ` - ${cardinality.dropped_count} metrics dropped` : ''}
+                    </div>`;
+                } else if (cardinalityPercent > 70) {
+                    warningHtml = `<div style="padding: 10px; background: #ff9800; color: white; border-radius: 4px; margin-bottom: 10px;">
+                        ⚠️ Cardinality: ${cardinality.current}/${cardinality.max} metrics (${cardinalityPercent.toFixed(0)}%)
+                    </div>`;
+                }
+
                 if (metricNames.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
+                    container.innerHTML = warningHtml + '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
                     currentMetricNames = [];
                     return;
+                }
+                
+                // Show info about limited display
+                if (metricNames.length >= 500) {
+                    warningHtml += `<div style="padding: 8px; background: #2196F3; color: white; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
+                        ℹ️ Showing first 500 of ${cardinality.current} metrics
+                    </div>`;
                 }
 
                 // Check if metric list has changed
                 const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
 
                 if (metricsChanged) {
-                    // Destroy old charts
-                    Object.values(metricCharts).forEach(chart => chart.destroy());
-                    Object.values(histogramBucketCharts).forEach(chart => chart.destroy());
-                    metricCharts = {};
-                    histogramBucketCharts = {};
-
-                    console.log('Metrics list changed, recreating DOM');
+                    console.log('Metrics list changed, recreating table');
                     currentMetricNames = metricNames;
-                    container.innerHTML = metricNames.map(name => `
-                        <div class="metric-card" id="metric-card-${name.replace(/\./g, '-')}">
-                            <div class="metric-name">${name}</div>
-                            <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
-                                <canvas></canvas>
-                            </div>
-                            <div class="histogram-info" id="histogram-${name.replace(/\./g, '-')}" style="display: none;">
-                                <div class="histogram-stats">
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Min:</span>
-                                        <span class="histogram-stat-value" id="hist-min-${name.replace(/\./g, '-')}">-</span>
+                    
+                    // Render table (but don't initialize charts yet)
+                    const metricsHtml = metricNames.map(name => {
+                        const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+                        const isExpanded = expandedMetrics.has(name);
+                        return `
+                            <div class="metric-row ${isExpanded ? 'expanded' : ''}" id="metric-row-${safeId}" data-metric-name="${name}">
+                                <div class="metric-header" onclick="toggleMetric('${name}')">
+                                    <div class="metric-row-name">${name}</div>
+                                    <div class="metric-row-value" id="metric-value-${safeId}">-</div>
+                                    <div class="metric-row-time" id="metric-time-${safeId}">-</div>
+                                    <div class="metric-expand-icon">▶</div>
+                                </div>
+                                <div class="metric-chart-container">
+                                    <div class="metric-chart" id="metric-${safeId}" data-metric-name="${name}" style="height: 200px;">
+                                        <canvas></canvas>
                                     </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Avg:</span>
-                                        <span class="histogram-stat-value" id="hist-avg-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Max:</span>
-                                        <span class="histogram-stat-value" id="hist-max-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Count:</span>
-                                        <span class="histogram-stat-value" id="hist-count-${name.replace(/\./g, '-')}">-</span>
+                                    <div class="histogram-info" id="histogram-${safeId}" style="display: none; margin-top: 15px;">
+                                        <div class="histogram-stats">
+                                            <div class="histogram-stat">
+                                                <span class="histogram-stat-label">Min:</span>
+                                                <span class="histogram-stat-value" id="hist-min-${safeId}">-</span>
+                                            </div>
+                                            <div class="histogram-stat">
+                                                <span class="histogram-stat-label">Avg:</span>
+                                                <span class="histogram-stat-value" id="hist-avg-${safeId}">-</span>
+                                            </div>
+                                            <div class="histogram-stat">
+                                                <span class="histogram-stat-label">Max:</span>
+                                                <span class="histogram-stat-value" id="hist-max-${safeId}">-</span>
+                                            </div>
+                                            <div class="histogram-stat">
+                                                <span class="histogram-stat-label">Count:</span>
+                                                <span class="histogram-stat-value" id="hist-count-${safeId}">-</span>
+                                            </div>
+                                        </div>
+                                        <div class="histogram-bucket-chart" id="histogram-bucket-${safeId}" style="height: 150px;">
+                                            <canvas></canvas>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="histogram-bucket-chart" id="histogram-bucket-${name.replace(/\./g, '-')}">
-                                    <canvas></canvas>
-                                </div>
                             </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
+                    
+                    // Combine warning and metrics HTML
+                    container.innerHTML = warningHtml + metricsHtml;
 
-                    // Initialize charts
-                    for (const name of metricNames) {
-                        initMetricChart(name);
-                    }
+                    // Initialize charts only for expanded metrics
+                    expandedMetrics.forEach(name => {
+                        if (metricNames.includes(name)) {
+                            initMetricChart(name);
+                        }
+                    });
                 }
 
-                // Update data for each metric
+                // Update latest values and data for expanded metrics
                 for (const name of metricNames) {
-                    updateMetricData(name);
+                    await updateMetricRowData(name);
                 }
             } catch (error) {
                 console.error('Error loading metrics:', error);
                 container.innerHTML = '<div class="empty">Error loading metrics</div>';
                 currentMetricNames = [];
+            }
+        }
+
+        function toggleMetric(name) {
+            const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+            const row = document.getElementById(`metric-row-${safeId}`);
+            
+            if (expandedMetrics.has(name)) {
+                // Collapse
+                expandedMetrics.delete(name);
+                row.classList.remove('expanded');
+                
+                // Destroy chart to save resources
+                if (metricCharts[name]) {
+                    metricCharts[name].destroy();
+                    delete metricCharts[name];
+                }
+                if (histogramBucketCharts[name]) {
+                    histogramBucketCharts[name].destroy();
+                    delete histogramBucketCharts[name];
+                }
+            } else {
+                // Expand
+                expandedMetrics.add(name);
+                row.classList.add('expanded');
+                
+                // Initialize chart
+                setTimeout(() => {
+                    initMetricChart(name);
+                    updateMetricData(name);
+                }, 100);
+            }
+        }
+
+        function filterMetrics() {
+            const searchTerm = document.getElementById('metric-search').value.toLowerCase();
+            const rows = document.querySelectorAll('.metric-row');
+            
+            rows.forEach(row => {
+                const metricName = row.dataset.metricName.toLowerCase();
+                if (metricName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        async function updateMetricRowData(name) {
+            const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+            
+            try {
+                const response = await fetch(`/api/metrics/${name}`);
+                const data = await response.json();
+                
+                if (data.data && data.data.length > 0) {
+                    const latest = data.data[data.data.length - 1];
+                    metricLatestValues[name] = latest;
+                    
+                    // Update value display
+                    const valueEl = document.getElementById(`metric-value-${safeId}`);
+                    if (valueEl) {
+                        valueEl.textContent = typeof latest.value === 'number' ? latest.value.toFixed(2) : latest.value;
+                    }
+                    
+                    // Update time display
+                    const timeEl = document.getElementById(`metric-time-${safeId}`);
+                    if (timeEl && latest.timestamp) {
+                        const date = new Date(latest.timestamp * 1000);
+                        const now = new Date();
+                        const diffMs = now - date;
+                        const diffSec = Math.floor(diffMs / 1000);
+                        
+                        if (diffSec < 60) {
+                            timeEl.textContent = `${diffSec}s ago`;
+                        } else if (diffSec < 3600) {
+                            timeEl.textContent = `${Math.floor(diffSec / 60)}m ago`;
+                        } else {
+                            timeEl.textContent = date.toLocaleTimeString();
+                        }
+                    }
+                }
+                
+                // If expanded, update the chart
+                if (expandedMetrics.has(name)) {
+                    updateMetricData(name);
+                }
+            } catch (error) {
+                console.error(`Error updating metric ${name}:`, error);
             }
         }
 

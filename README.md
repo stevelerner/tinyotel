@@ -154,3 +154,24 @@ Generate traffic to create traces, metrics, and logs:
 ```
 
 The demo includes two microservices that showcase distributed tracing across service boundaries. See [k8s-demo/README.md](k8s-demo/README.md) for details.
+
+## Features
+
+### Cardinality Protection
+
+TinyOlly includes built-in protection against metric cardinality explosion:
+- **Hard Limit**: 1000 unique metric names by default (configurable)
+- **Visual Warnings**: UI alerts when approaching the limit (70%, 90%)
+- **Drop & Track**: Metrics exceeding the limit are dropped and tracked for debugging
+- **Stats Display**: Shows `current / max (dropped)` in the UI
+
+**Configuration:**
+```bash
+# Kubernetes
+kubectl set env deployment/tinyolly-otlp-receiver MAX_METRIC_CARDINALITY=2000
+
+# Docker
+docker run -e MAX_METRIC_CARDINALITY=2000 ...
+```
+
+See [docs/CARDINALITY-PROTECTION.md](docs/CARDINALITY-PROTECTION.md) for detailed documentation.
