@@ -132,7 +132,13 @@ You can also run TinyOlly on Kubernetes using Minikube.
 
 5.  **Clean Up:**
 
-    To delete the resources:
+    Use the cleanup script to remove all TinyOlly resources:
+
+    ```bash
+    ./k8s/cleanup.sh
+    ```
+
+    Or manually delete resources:
 
     ```bash
     kubectl delete -f k8s/

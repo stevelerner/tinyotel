@@ -1,0 +1,147 @@
+#!/bin/bash
+
+# TinyOlly Kubernetes Cleanup Script
+# Removes all TinyOlly resources from the Kubernetes cluster
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}TinyOlly Kubernetes Cleanup${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo ""
+
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null; then
+    echo -e "${RED}Error: kubectl is not installed${NC}"
+    echo "Please install kubectl: https://kubernetes.io/docs/tasks/tools/"
+    exit 1
+fi
+
+# Check if connected to a cluster
+if ! kubectl cluster-info &> /dev/null; then
+    echo -e "${RED}Error: Not connected to a Kubernetes cluster${NC}"
+    echo "Please ensure your cluster is running and kubectl is configured properly"
+    exit 1
+fi
+
+# Get current context
+CONTEXT=$(kubectl config current-context)
+echo -e "${YELLOW}Current context: ${CONTEXT}${NC}"
+echo ""
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if any TinyOlly resources exist
+echo -e "${BLUE}Checking for TinyOlly resources...${NC}"
+RESOURCES_EXIST=false
+
+if kubectl get deployment redis &> /dev/null || \
+   kubectl get deployment tinyolly-otlp-receiver &> /dev/null || \
+   kubectl get deployment tinyolly-ui &> /dev/null || \
+   kubectl get deployment otel-collector &> /dev/null || \
+   kubectl get service redis &> /dev/null || \
+   kubectl get service tinyolly-otlp-receiver &> /dev/null || \
+   kubectl get service tinyolly-ui &> /dev/null || \
+   kubectl get service otel-collector &> /dev/null || \
+   kubectl get configmap otel-collector-config &> /dev/null; then
+    RESOURCES_EXIST=true
+fi
+
+if [ "$RESOURCES_EXIST" = false ]; then
+    echo -e "${YELLOW}No TinyOlly resources found in the current namespace${NC}"
+    echo ""
+    echo -e "${GREEN}Nothing to clean up!${NC}"
+    exit 0
+fi
+
+# Show resources that will be deleted
+echo -e "${YELLOW}The following resources will be deleted:${NC}"
+echo ""
+kubectl get deployments,services,configmaps 2>/dev/null | grep -E "(redis|tinyolly|otel-collector)" || echo "  (checking resources...)"
+echo ""
+
+# Confirm deletion
+read -p "$(echo -e ${YELLOW}Do you want to proceed with cleanup? [y/N]:${NC} )" -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Cleanup cancelled${NC}"
+    exit 0
+fi
+
+echo ""
+echo -e "${BLUE}Deleting TinyOlly resources...${NC}"
+echo ""
+
+# Method 1: Delete using kubectl delete -f on the entire directory
+echo -e "${YELLOW}→ Deleting all resources from k8s manifests...${NC}"
+kubectl delete -f "$SCRIPT_DIR/" --ignore-not-found=true 2>&1 | grep -v "error: the path" || true
+echo ""
+
+# Method 2: Delete by resource names (fallback to ensure everything is deleted)
+echo -e "${YELLOW}→ Ensuring all deployments are deleted...${NC}"
+kubectl delete deployment redis --ignore-not-found=true 2>/dev/null || true
+kubectl delete deployment tinyolly-otlp-receiver --ignore-not-found=true 2>/dev/null || true
+kubectl delete deployment tinyolly-ui --ignore-not-found=true 2>/dev/null || true
+kubectl delete deployment otel-collector --ignore-not-found=true 2>/dev/null || true
+
+echo -e "${YELLOW}→ Ensuring all services are deleted...${NC}"
+kubectl delete service redis --ignore-not-found=true 2>/dev/null || true
+kubectl delete service tinyolly-otlp-receiver --ignore-not-found=true 2>/dev/null || true
+kubectl delete service tinyolly-ui --ignore-not-found=true 2>/dev/null || true
+kubectl delete service otel-collector --ignore-not-found=true 2>/dev/null || true
+
+echo -e "${YELLOW}→ Ensuring all configmaps are deleted...${NC}"
+kubectl delete configmap otel-collector-config --ignore-not-found=true 2>/dev/null || true
+
+# Wait for pods to terminate
+echo ""
+echo -e "${BLUE}Waiting for pods to terminate...${NC}"
+kubectl wait --for=delete pod -l app=redis --timeout=60s 2>/dev/null || true
+kubectl wait --for=delete pod -l app=tinyolly-otlp-receiver --timeout=60s 2>/dev/null || true
+kubectl wait --for=delete pod -l app=tinyolly-ui --timeout=60s 2>/dev/null || true
+kubectl wait --for=delete pod -l app=otel-collector --timeout=60s 2>/dev/null || true
+
+echo ""
+echo -e "${BLUE}Verifying cleanup...${NC}"
+
+# Check if any resources still exist
+REMAINING_RESOURCES=false
+if kubectl get deployment,service,configmap 2>/dev/null | grep -qE "(redis|tinyolly|otel-collector)"; then
+    REMAINING_RESOURCES=true
+    echo -e "${YELLOW}Warning: Some resources may still exist:${NC}"
+    kubectl get deployment,service,configmap 2>/dev/null | grep -E "(redis|tinyolly|otel-collector)" || true
+else
+    echo -e "${GREEN}✓ All TinyOlly resources have been deleted${NC}"
+fi
+
+# Check for minikube tunnel
+if command -v minikube &> /dev/null; then
+    if pgrep -f "minikube tunnel" &> /dev/null; then
+        echo ""
+        echo -e "${YELLOW}Note: minikube tunnel is still running${NC}"
+        echo -e "${YELLOW}You may want to stop it manually (check for the process and Ctrl+C)${NC}"
+    fi
+fi
+
+# Offer to clean up Docker images if using Minikube
+if command -v minikube &> /dev/null && [ "$CONTEXT" = "minikube" ]; then
+    echo ""
+    read -p "$(echo -e ${YELLOW}Do you want to remove TinyOlly Docker images from Minikube? [y/N]:${NC} )" -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE}Removing Docker images from Minikube...${NC}"
+        minikube ssh "docker images | grep tinyolly | awk '{print \$1\":\"\$2}' | xargs -r docker rmi" 2>/dev/null || true
+        echo -e "${GREEN}✓ Docker images removed${NC}"
+    fi
+fi
+
+echo ""
+echo -e "${BLUE}========================================${NC}"
+echo -e "${GREEN}Cleanup complete!${NC}"
+echo -e "${BLUE}========================================${NC}"
