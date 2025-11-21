@@ -118,9 +118,15 @@ def get_logs():
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
-    """Get metric names"""
-    names = storage.get_metric_names()
-    return jsonify(names)
+    """Get metric names with optional limit"""
+    limit = request.args.get('limit', type=int)
+    names = storage.get_metric_names(limit=limit)
+    cardinality = storage.get_cardinality_stats()
+    
+    return jsonify({
+        'names': names,
+        'cardinality': cardinality
+    })
 
 @app.route('/api/metrics/<name>', methods=['GET'])
 def get_metric_data(name):

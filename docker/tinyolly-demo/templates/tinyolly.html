@@ -609,23 +609,75 @@
         }
 
         /* Metrics View */
-        .metric-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+        .metric-table {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
-        .metric-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: var(--shadow);
+        .metric-row {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-header {
+            display: grid;
+            grid-template-columns: 1fr auto auto 40px;
+            gap: 15px;
+            padding: 12px 15px;
+            cursor: pointer;
+            align-items: center;
+        }
+
+        .metric-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .metric-row.expanded .metric-header {
+            background: var(--bg-hover);
+        }
+
+        .metric-row-name {
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 14px;
+        }
+
+        .metric-row-value {
+            font-family: monospace;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .metric-row-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .metric-expand-icon {
+            color: var(--text-muted);
+            font-size: 18px;
             transition: transform 0.2s;
         }
 
-        .metric-card:hover {
-            transform: translateY(-2px);
+        .metric-row.expanded .metric-expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .metric-chart-container {
+            display: none;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+
+        .metric-row.expanded .metric-chart-container {
+            display: block;
         }
 
         .metric-name {
@@ -718,6 +770,19 @@
             transform: scale(1.1) rotate(180deg);
         }
 
+        .refresh-button:active {
+            transform: scale(0.95);
+        }
+
+        .refresh-button.refreshing {
+            animation: spin 1s linear;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -764,7 +829,7 @@
         <div class="container">
             <div>
                 <h1 style="cursor: pointer;" onclick="window.location.href='/'">TinyOlly</h1>
-                <div class="subtitle">Minimal Observability Backend - Logs, Metrics & Traces</div>
+                <div class="subtitle">Lightweight Observability For OpenTelemetry - Logs, Metrics & Traces</div>
             </div>
             <button class="theme-toggle" onclick="toggleTheme()">
                 <span id="theme-icon">🌙</span>
@@ -804,7 +869,12 @@
                 <span class="tab-stat-label">Total Metrics:</span>
                 <span class="tab-stat-value" id="stat-metrics">-</span>
             </div>
-            <div class="metric-list" id="metrics-container">
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="metric-search" placeholder="Search metrics..." 
+                       onkeyup="filterMetrics()" 
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
+            </div>
+            <div class="metric-table" id="metrics-container">
                 <div class="loading">Loading metrics...</div>
             </div>
         </div>
@@ -824,7 +894,18 @@
                 <button class="back-button" onclick="showTracesList()">Back to Traces</button>
                 <button class="view-json-button" onclick="toggleTraceJSON()">View Trace JSON</button>
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
-                <div id="trace-json-view" class="json-view" style="display: none;"></div>
+                <div id="trace-json-view" class="json-view" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <button onclick="event.stopPropagation(); copyTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            📋 Copy JSON
+                        </button>
+                        <button onclick="event.stopPropagation(); downloadTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            💾 Download JSON
+                        </button>
+                        <span id="copy-trace-feedback" style="color: var(--success); font-size: 14px; display: none;">✓ Copied!</span>
+                    </div>
+                    <pre id="trace-json-content"></pre>
+                </div>
                 <div class="trace-detail" id="trace-detail-container"></div>
                 <h3>Correlated Logs</h3>
                 <div class="log-list" id="trace-logs-container"></div>
@@ -845,972 +926,12 @@
         </div>
     </div>
 
-    <!-- Refresh Button -->
-    <button class="refresh-button" onclick="refreshCurrentTab()" title="Refresh">↻</button>
-
-    <script>
-        let currentTab = 'logs';
-        let currentTraceId = null;
-        let currentTraceData = null;
-        let autoRefreshInterval = null;
-        let expandedLogs = new Set(); // Track which logs have JSON expanded
-        let traceJsonOpen = false; // Track if trace JSON view is open
-
-        // Generate stable ID for a log entry
-        function getLogStableId(log) {
-            return `${log.timestamp}-${log.message}`.substring(0, 50);
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function () {
-            // Check theme preference
-            const savedTheme = localStorage.getItem('tinyolly-theme');
-            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                setTheme('dark');
-            }
-
-            loadStats();
-            loadLogs();
-            startAutoRefresh();
-        });
-
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-        }
-
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('tinyolly-theme', theme);
-
-            const icon = document.getElementById('theme-icon');
-            const text = document.getElementById('theme-text');
-
-            if (theme === 'dark') {
-                icon.textContent = '☀️';
-                text.textContent = 'Light Mode';
-            } else {
-                icon.textContent = '🌙';
-                text.textContent = 'Dark Mode';
-            }
-
-            // Re-render charts if they exist (to update colors)
-            if (currentTab === 'map') {
-                loadServiceMap();
-            } else if (currentTab === 'metrics') {
-                loadMetrics();
-            }
-        }
-
-        function startAutoRefresh() {
-            // Auto-refresh for metrics and traces only (logs are manual refresh only)
-            autoRefreshInterval = setInterval(() => {
-                loadStats();
-                if (currentTab === 'metrics') {
-                    loadMetrics(); // Refresh metrics every 2 seconds
-                } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
-                    loadTraces(); // Only refresh trace list if not viewing detail
-                } else if (currentTab === 'map') {
-                    loadServiceMap();
-                }
-            }, 2000); // Refresh every 2 seconds
-        }
-
-        function switchTab(tab, element) {
-            currentTab = tab;
-
-            // Update tab buttons - remove active from all, add to clicked
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            element.classList.add('active');
-
-            // Update tab content - hide all, show selected
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(tab + '-tab').classList.add('active');
-
-            // Load data for tab
-            refreshCurrentTab();
-        }
-
-        function refreshCurrentTab() {
-            if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
-                loadTraces();
-            } else if (currentTab === 'logs') {
-                loadLogs();
-            } else if (currentTab === 'metrics') {
-                loadMetrics();
-            } else if (currentTab === 'map') {
-                loadServiceMap();
-            }
-        }
-
-        async function loadStats() {
-            try {
-                const response = await fetch('/api/stats');
-                const stats = await response.json();
-                document.getElementById('stat-traces').textContent = stats.traces;
-                document.getElementById('stat-logs').textContent = stats.logs;
-                document.getElementById('stat-metrics').textContent = stats.metrics;
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        async function loadTraces() {
-            try {
-                const response = await fetch('/api/traces?limit=50');
-                const traces = await response.json();
-
-                const container = document.getElementById('traces-container');
-
-                if (traces.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No traces yet. Send some data to get started!</div></div>';
-                    return;
-                }
-
-                container.innerHTML = traces.map(trace => {
-                    const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
-
-                    return `
-                        <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
-                            <div class="trace-header">
-                                <div class="trace-name">${trace.root_span_name}</div>
-                                <div class="trace-duration">${trace.duration_ms.toFixed(2)}ms</div>
-                            </div>
-                            <div class="trace-meta">
-                                <span>${trace.span_count} spans</span>
-                                <span class="trace-id">${displayTraceId}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error('Error loading traces:', error);
-                document.getElementById('traces-container').innerHTML = '<div class="empty">Error loading traces</div>';
-            }
-        }
-
-        async function showTraceDetail(traceId) {
-            currentTraceId = traceId;
-
-            try {
-                const response = await fetch(`/api/traces/${traceId}`);
-                const trace = await response.json();
-                currentTraceData = trace;
-
-                // Hide list, show detail
-                document.getElementById('traces-list-view').style.display = 'none';
-                document.getElementById('trace-detail-view').style.display = 'block';
-
-                // Keep JSON view state if it was open, otherwise hide it
-                const jsonView = document.getElementById('trace-json-view');
-                if (traceJsonOpen && currentTraceData) {
-                    jsonView.style.display = 'block';
-                    jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
-                } else {
-                    jsonView.style.display = 'none';
-                    traceJsonOpen = false;
-                }
-                // Keep JSON view state if it was open, otherwise hide it
-                if (!traceJsonOpen) {
-                    document.getElementById('trace-json-view').style.display = 'none';
-                }
-
-                renderWaterfall(trace);
-                loadTraceLog(traceId);
-            } catch (error) {
-                console.error('Error loading trace detail:', error);
-            }
-        }
-
-        // Service Map Visualization
-        let mapNodes = [];
-        let mapEdges = [];
-        let mapSimulation = null;
-
-        async function loadServiceMap() {
-            try {
-                const response = await fetch('/api/service-map?limit=100');
-                const graph = await response.json();
-
-                document.getElementById('stat-dependencies').textContent = graph.edges.length;
-                document.getElementById('map-loading').style.display = 'none';
-
-                renderServiceMap(graph);
-            } catch (error) {
-                console.error('Error loading service map:', error);
-            }
-        }
-
-        function renderServiceMap(graph) {
-            const canvas = document.getElementById('service-map-canvas');
-            const ctx = canvas.getContext('2d');
-            const container = canvas.parentElement;
-
-            // Resize canvas
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-
-            const width = canvas.width;
-            const height = canvas.height;
-
-            // Simple force-directed layout simulation
-            // Initialize positions if new
-            if (mapNodes.length === 0 || JSON.stringify(mapNodes.map(n => n.id)) !== JSON.stringify(graph.nodes.map(n => n.id))) {
-                mapNodes = graph.nodes.map(n => ({
-                    ...n,
-                    x: Math.random() * width,
-                    y: Math.random() * height,
-                    vx: 0,
-                    vy: 0
-                }));
-            } else {
-                // Update existing nodes
-                // This is a simplification, ideally we'd merge
-            }
-
-            mapEdges = graph.edges;
-
-            // Run simulation step
-            for (let i = 0; i < 50; i++) {
-                simulateForceLayout(width, height);
-            }
-
-            // Draw
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw edges
-            ctx.strokeStyle = '#999';
-            ctx.lineWidth = 1;
-
-            mapEdges.forEach(edge => {
-                const source = mapNodes.find(n => n.id === edge.source);
-                const target = mapNodes.find(n => n.id === edge.target);
-
-                if (source && target) {
-                    ctx.beginPath();
-                    ctx.moveTo(source.x, source.y);
-                    ctx.lineTo(target.x, target.y);
-                    ctx.stroke();
-
-                    // Draw arrow
-                    const angle = Math.atan2(target.y - source.y, target.x - source.x);
-                    const headLen = 10;
-                    ctx.beginPath();
-                    ctx.moveTo(target.x - headLen * Math.cos(angle - Math.PI / 6), target.y - headLen * Math.sin(angle - Math.PI / 6));
-                    ctx.lineTo(target.x, target.y);
-                    ctx.lineTo(target.x - headLen * Math.cos(angle + Math.PI / 6), target.y - headLen * Math.sin(angle + Math.PI / 6));
-                    ctx.fillStyle = '#999';
-                    ctx.fill();
-
-                    // Draw label
-                    const midX = (source.x + target.x) / 2;
-                    const midY = (source.y + target.y) / 2;
-                    ctx.fillStyle = '#666';
-                    ctx.font = '10px Arial';
-                    ctx.fillText(edge.value, midX, midY);
-                }
-            });
-
-            // Draw nodes
-            mapNodes.forEach(node => {
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
-                ctx.fillStyle = '#2c5aa0';
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(node.label, node.x, node.y + 35);
-            });
-        }
-
-        function simulateForceLayout(width, height) {
-            const k = 100; // Ideal length
-            const repulsion = 5000;
-
-            // Repulsion
-            for (let i = 0; i < mapNodes.length; i++) {
-                for (let j = i + 1; j < mapNodes.length; j++) {
-                    const n1 = mapNodes[i];
-                    const n2 = mapNodes[j];
-                    const dx = n1.x - n2.x;
-                    const dy = n1.y - n2.y;
-                    const d2 = dx * dx + dy * dy + 0.1;
-                    const f = repulsion / d2;
-                    const fx = f * dx / Math.sqrt(d2);
-                    const fy = f * dy / Math.sqrt(d2);
-
-                    n1.vx += fx;
-                    n1.vy += fy;
-                    n2.vx -= fx;
-                    n2.vy -= fy;
-                }
-            }
-
-            // Attraction (Edges)
-            mapEdges.forEach(edge => {
-                const source = mapNodes.find(n => n.id === edge.source);
-                const target = mapNodes.find(n => n.id === edge.target);
-
-                if (source && target) {
-                    const dx = target.x - source.x;
-                    const dy = target.y - source.y;
-                    const d = Math.sqrt(dx * dx + dy * dy);
-                    const f = (d - k) * 0.05;
-                    const fx = f * dx / d;
-                    const fy = f * dy / d;
-
-                    source.vx += fx;
-                    source.vy += fy;
-                    target.vx -= fx;
-                    target.vy -= fy;
-                }
-            });
-
-            // Center gravity
-            mapNodes.forEach(node => {
-                const dx = width / 2 - node.x;
-                const dy = height / 2 - node.y;
-                node.vx += dx * 0.01;
-                node.vy += dy * 0.01;
-
-                // Update position
-                node.x += node.vx;
-                node.y += node.vy;
-
-                // Damping
-                node.vx *= 0.9;
-                node.vy *= 0.9;
-
-                // Bounds
-                node.x = Math.max(20, Math.min(width - 20, node.x));
-                node.y = Math.max(20, Math.min(height - 20, node.y));
-            });
-        }
-
-        function toggleTraceJSON() {
-            const jsonView = document.getElementById('trace-json-view');
-            if (jsonView.style.display === 'none') {
-                jsonView.style.display = 'block';
-                jsonView.innerHTML = '<pre>' + JSON.stringify(currentTraceData, null, 2) + '</pre>';
-                traceJsonOpen = true;
-            } else {
-                jsonView.style.display = 'none';
-                traceJsonOpen = false;
-            }
-        }
-
-        function showLogsForTrace() {
-            if (!currentTraceId) return;
-
-            // Switch to logs tab
-            currentTab = 'logs';
-            document.querySelectorAll('.tab').forEach(t => {
-                t.classList.remove('active');
-                if (t.getAttribute('data-tab') === 'logs') {
-                    t.classList.add('active');
-                }
-            });
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('logs-tab').classList.add('active');
-
-            // Set filter and load logs
-            document.getElementById('trace-id-filter').value = currentTraceId;
-            loadLogs();
-        }
-
-        function showTracesList() {
-            document.getElementById('traces-list-view').style.display = 'block';
-            document.getElementById('trace-detail-view').style.display = 'none';
-            currentTraceId = null;
-            currentTraceData = null;
-        }
-
-        // Track selected span for JSON view
-        let selectedSpanIndex = null;
-
-        function renderWaterfall(trace) {
-            const spans = trace.spans;
-            currentTraceData = trace;
-            selectedSpanIndex = null;
-
-            // Find trace bounds
-            const startTimes = spans.map(s => s.startTimeUnixNano || s.start_time || 0);
-            const endTimes = spans.map(s => s.endTimeUnixNano || s.end_time || 0);
-            const traceStart = Math.min(...startTimes);
-            const traceEnd = Math.max(...endTimes);
-            const traceDuration = traceEnd - traceStart;
-            const traceDurationMs = traceDuration / 1_000_000;
-
-            const container = document.getElementById('trace-detail-container');
-            const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
-
-            // Create time markers (0%, 25%, 50%, 75%, 100%)
-            const timeMarkers = [0, 0.25, 0.5, 0.75, 1.0].map(fraction => {
-                const timeMs = traceDurationMs * fraction;
-                // For the first and last markers, adjust positioning to prevent overflow
-                let className = 'time-marker';
-                let positionStyle = `left: ${fraction * 100}%;`;
-
-                if (fraction === 0) {
-                    className += ' first';
-                } else if (fraction === 1.0) {
-                    className += ' last';
-                    positionStyle = ''; // Will use right: 0 from CSS
-                }
-
-                return `<div class="${className}" style="${positionStyle}">${timeMs.toFixed(2)}ms</div>`;
-            }).join('');
-
-            container.innerHTML = `
-                <h2>Trace: ${displayTraceId}</h2>
-                <p>${trace.span_count} spans - ${traceDurationMs.toFixed(2)}ms total</p>
-                <div class="waterfall">
-                    ${spans.map((span, idx) => {
-                const startTime = span.startTimeUnixNano || span.start_time || 0;
-                const endTime = span.endTimeUnixNano || span.end_time || 0;
-                const duration = endTime - startTime;
-                const offset = startTime - traceStart;
-
-                const leftPercent = (offset / traceDuration) * 100;
-                const widthPercent = (duration / traceDuration) * 100;
-
-                return `
-                            <div class="span-row">
-                                <div class="span-info">
-                                    <div class="span-name" title="${span.name}">${span.name}</div>
-                                    <div class="span-timeline">
-                                        <div class="span-bar" data-span-index="${idx}" style="left: ${leftPercent}%; width: ${widthPercent}%;">
-                                            ${duration > traceDuration * 0.1 ? (duration / 1_000_000).toFixed(2) + 'ms' : ''}
-                                        </div>
-                                    </div>
-                                    <div class="span-duration">${(duration / 1_000_000).toFixed(2)}ms</div>
-                                </div>
-                            </div>
-                        `;
-            }).join('')}
-                </div>
-                <div class="time-axis">
-                    <div class="time-markers">
-                        ${timeMarkers}
-                    </div>
-                </div>
-                <div id="span-json-container"></div>
-            `;
-
-            // Add click handlers to span bars
-            container.querySelectorAll('.span-bar').forEach(bar => {
-                bar.addEventListener('click', (e) => {
-                    const spanIndex = parseInt(e.currentTarget.getAttribute('data-span-index'));
-                    showSpanJson(spanIndex);
-                });
-            });
-        }
-
-        function showSpanJson(spanIndex) {
-            if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
-
-            const span = currentTraceData.spans[spanIndex];
-            const container = document.getElementById('span-json-container');
-
-            // Update selected state
-            document.querySelectorAll('.span-bar').forEach((bar, idx) => {
-                if (idx === spanIndex) {
-                    bar.classList.add('selected');
-                } else {
-                    bar.classList.remove('selected');
-                }
-            });
-
-            selectedSpanIndex = spanIndex;
-
-            container.innerHTML = `
-                <div class="span-json-container">
-                    <div class="span-json-header">
-                        <div class="span-json-title">Span: ${span.name}</div>
-                        <button class="span-json-close" onclick="closeSpanJson()">Close</button>
-                    </div>
-                    <pre class="json-content">${JSON.stringify(span, null, 2)}</pre>
-                </div>
-            `;
-
-            // Scroll to the JSON view
-            setTimeout(() => {
-                const jsonContainer = document.querySelector('.span-json-container');
-                if (jsonContainer) {
-                    jsonContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 50);
-        }
-
-        function closeSpanJson() {
-            const container = document.getElementById('span-json-container');
-            container.innerHTML = '';
-            document.querySelectorAll('.span-bar').forEach(bar => {
-                bar.classList.remove('selected');
-            });
-            selectedSpanIndex = null;
-        }
-
-        async function loadLogs() {
-            const traceIdFilter = document.getElementById('trace-id-filter').value.trim();
-            const url = traceIdFilter ? `/api/logs?trace_id=${traceIdFilter}` : '/api/logs?limit=100';
-
-            try {
-                const response = await fetch(url);
-                const logs = await response.json();
-
-                const container = document.getElementById('logs-container');
-
-                if (logs.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No logs found</div></div>';
-                    return;
-                }
-
-                container.innerHTML = logs.map((log, idx) => {
-                    const stableId = getLogStableId(log);
-                    const logId = `log-${idx}-${stableId.replace(/[^a-zA-Z0-9]/g, '')}`;
-                    const timestamp = new Date(log.timestamp * 1000).toISOString();
-                    const severity = log.severity || 'INFO';
-                    const traceId = log.trace_id || log.traceId || '';
-                    const message = log.message || '';
-
-                    // Check if this log's JSON should be expanded
-                    const isExpanded = expandedLogs.has(stableId);
-
-                    // Remove leading zeros but keep at least one digit
-                    const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
-
-                    return `
-                        <div class="log-item">
-                            <div>
-                                <span class="log-timestamp">${timestamp}</span>
-                                <span class="log-severity ${severity}">${severity}</span>
-                                ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view log json</span>
-                            </div>
-                            <div class="log-message">${message}</div>
-                            <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
-                                <pre>${JSON.stringify(log, null, 2)}</pre>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error('Error loading logs:', error);
-                document.getElementById('logs-container').innerHTML = '<div class="empty">Error loading logs</div>';
-            }
-        }
-
-        function toggleLogJSON(logId, stableId) {
-            const jsonView = document.getElementById(logId);
-            if (jsonView.style.display === 'none') {
-                jsonView.style.display = 'block';
-                expandedLogs.add(stableId);
-            } else {
-                jsonView.style.display = 'none';
-                expandedLogs.delete(stableId);
-            }
-        }
-
-        async function loadTraceLog(traceId) {
-            try {
-                const response = await fetch(`/api/logs?trace_id=${traceId}`);
-                const logs = await response.json();
-
-                const container = document.getElementById('trace-logs-container');
-
-                if (logs.length === 0) {
-                    container.innerHTML = '<div class="empty" style="padding: 12px;">No logs for this trace</div>';
-                    return;
-                }
-
-                container.innerHTML = logs.map((log, idx) => {
-                    const logId = `trace-log-${idx}`;
-                    const timestamp = new Date(log.timestamp * 1000).toISOString();
-                    const severity = log.severity || 'INFO';
-                    const message = log.message || '';
-                    const traceId = log.trace_id || log.traceId || '';
-
-                    // Remove leading zeros but keep at least one digit
-                    const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
-
-                    return `
-                        <div class="log-item">
-                            <div>
-                                <span class="log-timestamp">${timestamp}</span>
-                                <span class="log-severity ${severity}">${severity}</span>
-                                ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                                <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view log json</span>
-                            </div>
-                            <div class="log-message">${message}</div>
-                            <div id="${logId}" class="json-view" style="display: none;">
-                                <pre>${JSON.stringify(log, null, 2)}</pre>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error('Error loading trace logs:', error);
-            }
-        }
-
-        function showTraceFromLog(traceId) {
-            // Reset trace JSON state when navigating from log
-            traceJsonOpen = false;
-
-            // Switch to traces tab
-            currentTab = 'traces';
-            document.querySelectorAll('.tab').forEach(t => {
-                t.classList.remove('active');
-                if (t.getAttribute('data-tab') === 'traces') {
-                    t.classList.add('active');
-                }
-            });
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('traces-tab').classList.add('active');
-
-            // Show trace detail
-            setTimeout(() => showTraceDetail(traceId), 100);
-        }
-
-        function clearLogFilter() {
-            // Clear the filter input
-            document.getElementById('trace-id-filter').value = '';
-            // Reload all logs
-            loadLogs();
-        }
-
-        let currentMetricNames = [];
-        let metricCharts = {}; // Store Chart.js instances
-        let histogramBucketCharts = {}; // Store bucket bar charts for histograms
-
-        async function loadMetrics() {
-            try {
-                const response = await fetch('/api/metrics');
-                const metricNames = await response.json();
-
-                const container = document.getElementById('metrics-container');
-
-                if (metricNames.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="empty-icon">-</div><div>No metrics yet</div></div>';
-                    currentMetricNames = [];
-                    return;
-                }
-
-                // Check if metric list has changed
-                const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
-
-                if (metricsChanged) {
-                    // Destroy old charts
-                    Object.values(metricCharts).forEach(chart => chart.destroy());
-                    Object.values(histogramBucketCharts).forEach(chart => chart.destroy());
-                    metricCharts = {};
-                    histogramBucketCharts = {};
-
-                    console.log('Metrics list changed, recreating DOM');
-                    currentMetricNames = metricNames;
-                    container.innerHTML = metricNames.map(name => `
-                        <div class="metric-card" id="metric-card-${name.replace(/\./g, '-')}">
-                            <div class="metric-name">${name}</div>
-                            <div class="metric-chart" id="metric-${name.replace(/\./g, '-')}" data-metric-name="${name}">
-                                <canvas></canvas>
-                            </div>
-                            <div class="histogram-info" id="histogram-${name.replace(/\./g, '-')}" style="display: none;">
-                                <div class="histogram-stats">
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Min:</span>
-                                        <span class="histogram-stat-value" id="hist-min-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Avg:</span>
-                                        <span class="histogram-stat-value" id="hist-avg-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Max:</span>
-                                        <span class="histogram-stat-value" id="hist-max-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Count:</span>
-                                        <span class="histogram-stat-value" id="hist-count-${name.replace(/\./g, '-')}">-</span>
-                                    </div>
-                                </div>
-                                <div class="histogram-bucket-chart" id="histogram-bucket-${name.replace(/\./g, '-')}">
-                                    <canvas></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    // Initialize charts
-                    for (const name of metricNames) {
-                        initMetricChart(name);
-                    }
-                }
-
-                // Update data for each metric
-                for (const name of metricNames) {
-                    updateMetricData(name);
-                }
-            } catch (error) {
-                console.error('Error loading metrics:', error);
-                container.innerHTML = '<div class="empty">Error loading metrics</div>';
-                currentMetricNames = [];
-            }
-        }
-
-        const MAX_POINTS = 30;
-        let lastTimestamps = {}; // Track last timestamp for each metric
-
-        function initMetricChart(name) {
-            const chartId = `metric-${name.replace(/\./g, '-')}`;
-            const canvas = document.querySelector(`#${chartId} canvas`);
-            if (!canvas) return;
-
-            lastTimestamps[name] = null; // Initialize timestamp tracking
-
-            const ctx = canvas.getContext('2d');
-            metricCharts[name] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: name,
-                        data: [],
-                        borderColor: '#2c5aa0',
-                        backgroundColor: 'rgba(44, 90, 160, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 750,
-                        easing: 'easeInOutQuad'
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    return 'Value: ' + context.parsed.y.toFixed(2);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            display: false
-                        },
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                font: {
-                                    size: 9
-                                },
-                                color: '#666'
-                            },
-                            grid: {
-                                color: '#e0e0e0'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        async function updateMetricData(name) {
-            try {
-                const response = await fetch(`/api/metrics/${name}`);
-                const data = await response.json();
-
-                if (data.data.length === 0 || !metricCharts[name]) return;
-
-                const chart = metricCharts[name];
-
-                // Get all new points since last update
-                const lastTimestamp = lastTimestamps[name] || 0;
-                const newPoints = data.data.filter(point => point.timestamp > lastTimestamp);
-
-                if (newPoints.length === 0) return; // No new data
-
-                // Check if this is a histogram metric
-                const latestPoint = data.data[data.data.length - 1];
-                const isHistogram = latestPoint && latestPoint.histogram;
-
-                // Show/hide histogram info
-                const histogramInfoId = `histogram-${name.replace(/\./g, '-')}`;
-                const histogramInfo = document.getElementById(histogramInfoId);
-                if (histogramInfo) {
-                    histogramInfo.style.display = isHistogram ? 'block' : 'none';
-                }
-
-                // Add all new points
-                let addedCount = 0;
-                for (const point of newPoints) {
-                    const timestamp = new Date(point.timestamp * 1000).toLocaleTimeString();
-                    const value = parseFloat(point.value);
-
-                    // For metrics with labels, aggregate by taking the sum of all label values at this timestamp
-                    const existingIndex = chart.data.labels.indexOf(timestamp);
-                    if (existingIndex >= 0) {
-                        // Same timestamp, add to existing value (aggregate across labels)
-                        chart.data.datasets[0].data[existingIndex] += value;
-                    } else {
-                        // New timestamp, add new point
-                        chart.data.labels.push(timestamp);
-                        chart.data.datasets[0].data.push(value);
-                        addedCount++;
-                    }
-                }
-
-                // Update last timestamp to the latest point
-                if (newPoints.length > 0) {
-                    lastTimestamps[name] = Math.max(...newPoints.map(p => p.timestamp));
-                }
-
-                console.log(`${name}: Added ${addedCount} new points`);
-
-                // Keep only last MAX_POINTS
-                while (chart.data.labels.length > MAX_POINTS) {
-                    chart.data.labels.shift();
-                    chart.data.datasets[0].data.shift();
-                }
-
-                chart.update();
-
-                // Update histogram visualization if applicable
-                if (isHistogram && latestPoint.histogram) {
-                    updateHistogramDisplay(name, latestPoint.histogram);
-                }
-
-            } catch (error) {
-                console.error(`Error updating metric ${name}:`, error);
-            }
-        }
-
-        function updateHistogramDisplay(name, histogramData) {
-            const safeName = name.replace(/\./g, '-');
-
-            // Update stats
-            if (histogramData.min !== null && histogramData.min !== undefined) {
-                document.getElementById(`hist-min-${safeName}`).textContent = histogramData.min.toFixed(2);
-            }
-            if (histogramData.average !== null && histogramData.average !== undefined) {
-                document.getElementById(`hist-avg-${safeName}`).textContent = histogramData.average.toFixed(2);
-            }
-            if (histogramData.max !== null && histogramData.max !== undefined) {
-                document.getElementById(`hist-max-${safeName}`).textContent = histogramData.max.toFixed(2);
-            }
-            if (histogramData.count !== null && histogramData.count !== undefined) {
-                document.getElementById(`hist-count-${safeName}`).textContent = histogramData.count;
-            }
-
-            // Update bucket chart
-            if (histogramData.buckets && histogramData.buckets.length > 0) {
-                updateHistogramBuckets(name, histogramData.buckets);
-            }
-        }
-
-        function updateHistogramBuckets(name, buckets) {
-            const safeName = name.replace(/\./g, '-');
-            const containerId = `histogram-bucket-${safeName}`;
-            const container = document.getElementById(containerId);
-            if (!container) return;
-
-            // Get or create canvas
-            let canvas = container.querySelector('canvas');
-            if (!canvas) {
-                canvas = document.createElement('canvas');
-                container.appendChild(canvas);
-            }
-
-            // Destroy existing chart if it exists
-            if (histogramBucketCharts[name]) {
-                histogramBucketCharts[name].destroy();
-            }
-
-            // Prepare bucket labels and counts
-            // In OTLP: bucket i contains values in range [explicit_bounds[i-1], explicit_bounds[i])
-            // Bucket 0 is (-inf, explicit_bounds[0]), last bucket is [explicit_bounds[N-1], +inf)
-            const labels = buckets.map((bucket, i) => {
-                if (bucket.bound === null) {
-                    // This is the +Inf bucket (last bucket)
-                    if (i > 0 && buckets[i - 1].bound !== null) {
-                        return `≥${buckets[i - 1].bound}`;
-                    }
-                    return '+Inf';
-                } else if (i === 0) {
-                    // First bucket: (-inf, bound)
-                    return `<${bucket.bound}`;
-                } else {
-                    // Middle buckets: [prev_bound, bound)
-                    const prevBound = buckets[i - 1].bound;
-                    if (prevBound === null) {
-                        return `<${bucket.bound}`;
-                    }
-                    return `${prevBound}-${bucket.bound}`;
-                }
-            });
-            const counts = buckets.map(b => b.count);
-
-            // Create bar chart
-            const ctx = canvas.getContext('2d');
-            histogramBucketCharts[name] = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Count',
-                        data: counts,
-                        backgroundColor: 'rgba(44, 90, 160, 0.6)',
-                        borderColor: 'rgba(44, 90, 160, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: true
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                font: { size: 8 },
-                                stepSize: 1
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                font: { size: 7 },
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
+    <!-- Auto-Refresh Toggle Button -->
+    <button class="refresh-button" onclick="toggleAutoRefresh()" title="Pause auto-refresh" id="auto-refresh-btn">
+        <span id="refresh-icon">⏸</span>
+    </button>
+
+    <script src="/static/tinyolly.js"></script>
 </body>
 
 </html>

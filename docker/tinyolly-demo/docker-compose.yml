@@ -59,7 +59,7 @@ services:
       dockerfile: Dockerfile.tinyolly
     container_name: tinyolly
     ports:
-      - "5002:5002"
+      - "5005:5002"  # Changed to 5005 to avoid conflict with K8s (which uses 5002)
     depends_on:
       - redis
     environment:

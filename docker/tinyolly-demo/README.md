@@ -18,7 +18,7 @@ This folder contains the complete demo environment including:
 ```
 
 **3. View the UI:**
-Open `http://localhost:5002`
+Open `http://localhost:5005`
 
 **4. Stop the demo:**
 ```bash

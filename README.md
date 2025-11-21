@@ -10,8 +10,6 @@ Included is a demo app with two Flask microservices which are auto instrumenated
 
 > **Note:** Built and tested on Docker Desktop for Mac.
 
-The Docker-based implementation has been moved to the `docker/` directory.
-
 ### Option 1: Full TinyOlly Demo
 Run the otel collector, TinyOlly receiver, storage, and UI, and the demo app with two Flask microservices.  
 
@@ -20,12 +18,7 @@ cd docker/tinyolly-demo
 ./01-start.sh
 ```
 
-Then generate traffic:
-```bash
-./02-traffic.sh
-```
-
-Open the UI at `http://localhost:5002`.
+Open the UI at `http://localhost:5005`. Traffic is generated automatically by the demo apps.
 
 Stop the demo:
 ```bash
@@ -46,7 +39,7 @@ cd docker
 
 This starts:
 - **OTel Collector**: Listening on `localhost:4317` (gRPC) and `localhost:4318` (HTTP)
-- **TinyOlly UI**: `http://localhost:5002`
+- **TinyOlly UI**: `http://localhost:5005` (Docker uses port 5005 to avoid conflict with K8s)
 - **Redis & Receiver**: Backend storage
 
 **Instrument Your App:**
@@ -147,13 +140,7 @@ cd k8s-demo
 ./deploy.sh
 ```
 
-Generate traffic to create traces, metrics, and logs:
-
-```bash
-./generate-traffic.sh
-```
-
-The demo includes two microservices that showcase distributed tracing across service boundaries. See [k8s-demo/README.md](k8s-demo/README.md) for details.
+The demo includes two microservices that automatically generate traffic, showcasing distributed tracing across service boundaries. See [k8s-demo/README.md](k8s-demo/README.md) for details.
 
 ## Features
 
