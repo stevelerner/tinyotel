@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tinyolly-otlp-receiver
+  labels:
+    app: tinyolly-otlp-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tinyolly-otlp-receiver
+  template:
+    metadata:
+      labels:
+        app: tinyolly-otlp-receiver
+    spec:
+      containers:
+      - name: tinyolly-otlp-receiver
+        image: tinyolly-otlp-receiver:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5003
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tinyolly-otlp-receiver
+spec:
+  selector:
+    app: tinyolly-otlp-receiver
+  ports:
+    - protocol: TCP
+      port: 5003
+      targetPort: 5003

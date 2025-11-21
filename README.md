@@ -6,7 +6,7 @@ Think of TinyOlly as a tool to livetail your metrics/traces/logs during developm
 
 Included is a demo app with two Flask microservices which are auto instrumenated for tracing and also utilize the OpenTelemetry Python SDK to export logs and metrics to the OpenTelemetry collector. This is the proper way to instrument an application for observability.  
 
-## Quick Start
+## Docker: Quick Start
 
 > **Note:** Built and tested on Docker Desktop for Mac.
 
@@ -82,3 +82,58 @@ Demo Frontend  ←→  Demo Backend (distributed tracing)
 - `/process-order` - Complex multi-service flow (inventory, pricing, payment)
 - `/hello`, `/calculate`, `/error` - Simple endpoints
 - All endpoints generate logs, metrics, and traces
+
+## Kubernetes (Minikube): Quick Start
+
+You can also run TinyOlly on Kubernetes using Minikube.
+
+### Prerequisites
+
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+### Setup
+
+1.  **Start Minikube:**
+
+    ```bash
+    minikube start
+    ```
+
+2.  **Build Images:**
+
+    Run the build script to build the Docker images inside Minikube's Docker daemon:
+
+    ```bash
+    ./k8s/build-images.sh
+    ```
+
+3.  **Apply Manifests:**
+
+    Apply the Kubernetes manifests to deploy the services:
+
+    ```bash
+    kubectl apply -f k8s/
+    ```
+
+4.  **Access the UI:**
+
+    To access the TinyOlly UI (Service Type: LoadBalancer) on macOS with Minikube, you need to use `minikube tunnel`.
+
+    Open a **new terminal window** and run:
+
+    ```bash
+    minikube tunnel
+    ```
+
+    You may be asked for your password. Keep this terminal open.
+
+    Now you can access the UI at: [http://localhost:5002](http://localhost:5002)
+
+5.  **Clean Up:**
+
+    To delete the resources:
+
+    ```bash
+    kubectl delete -f k8s/
+    ```
