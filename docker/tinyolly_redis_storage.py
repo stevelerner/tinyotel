@@ -10,7 +10,9 @@ import os
 
 # Default configuration
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+# Use REDIS_PORT_NUMBER to avoid conflict with K8s auto-generated REDIS_PORT variable
+# K8s creates REDIS_PORT with value like "tcp://10.107.63.144:6379"
+REDIS_PORT = int(os.getenv('REDIS_PORT_NUMBER', os.getenv('REDIS_PORT_OVERRIDE', '6379')))
 TTL_SECONDS = 600  # 10 minutes
 
 class Storage:
