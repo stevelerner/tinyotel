@@ -950,7 +950,7 @@
                     console.log('Auto-refreshing service map');
                     loadServiceMap();
                 }
-            }, 3000); // Refresh every 3 seconds
+            }, 5000); // Refresh every 5 seconds
         }
 
         function restoreActiveTab() {
@@ -1075,7 +1075,9 @@
                     return;
                 }
 
-                container.innerHTML = traces.map(trace => {
+                const limitNote = traces.length >= 50 ? '<div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">Showing last 50 traces (older data available in Redis)</div>' : '';
+
+                container.innerHTML = limitNote + traces.map(trace => {
                     const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
 
                     return `
@@ -1479,7 +1481,9 @@
                     return;
                 }
 
-                container.innerHTML = logs.map((log, idx) => {
+                const limitNote = !traceIdFilter && logs.length >= 100 ? '<div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">Showing last 100 logs (older data available in Redis)</div>' : '';
+
+                container.innerHTML = limitNote + logs.map((log, idx) => {
                     const stableId = getLogStableId(log);
                     const logId = `log-${idx}-${stableId.replace(/[^a-zA-Z0-9]/g, '')}`;
                     const timestamp = new Date(log.timestamp * 1000).toISOString();

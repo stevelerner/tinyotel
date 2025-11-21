@@ -1,11 +1,14 @@
 """
 Demo Frontend Application
 Uses OpenTelemetry auto-instrumentation for traces, metrics, and logs
+Includes automatic traffic generation for continuous telemetry
 """
 import random
 import time
 import logging
 import requests
+import threading
+import os
 from flask import Flask, jsonify
 
 # Configure standard Python logging - OpenTelemetry will capture these
@@ -20,12 +23,50 @@ app = Flask(__name__)
 # Backend service URL
 BACKEND_URL = "http://demo-backend:5000"
 
+# Auto-traffic generation settings
+AUTO_TRAFFIC_ENABLED = os.getenv('AUTO_TRAFFIC', 'true').lower() == 'true'
+TRAFFIC_INTERVAL_MIN = int(os.getenv('TRAFFIC_INTERVAL_MIN', '3'))  # seconds
+TRAFFIC_INTERVAL_MAX = int(os.getenv('TRAFFIC_INTERVAL_MAX', '8'))  # seconds
+
+def generate_auto_traffic():
+    """Background thread that generates automatic traffic for demo purposes"""
+    logger.info(f"Auto-traffic generation started (interval: {TRAFFIC_INTERVAL_MIN}-{TRAFFIC_INTERVAL_MAX}s)")
+    
+    # Wait a bit for the app to fully start
+    time.sleep(10)
+    
+    endpoints = ['/hello', '/calculate', '/process-order', '/error']
+    weights = [25, 25, 40, 10]  # 40% complex orders, 25% calc, 25% hello, 10% error
+    
+    while True:
+        try:
+            # Choose an endpoint based on weights
+            endpoint = random.choices(endpoints, weights=weights, k=1)[0]
+            
+            logger.info(f"Auto-traffic: calling {endpoint}")
+            
+            # Make internal request
+            try:
+                response = requests.get(f"http://localhost:5000{endpoint}", timeout=10)
+                logger.info(f"Auto-traffic: {endpoint} -> {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Auto-traffic request failed: {e}")
+            
+            # Random delay between requests
+            delay = random.uniform(TRAFFIC_INTERVAL_MIN, TRAFFIC_INTERVAL_MAX)
+            time.sleep(delay)
+            
+        except Exception as e:
+            logger.error(f"Auto-traffic generation error: {e}")
+            time.sleep(5)
+
 @app.route('/')
 def home():
     logger.info("Home endpoint called")
     return jsonify({
         "message": "TinyOlly Demo App",
-        "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"]
+        "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"],
+        "auto_traffic": "enabled" if AUTO_TRAFFIC_ENABLED else "disabled"
     })
 
 @app.route('/hello')
@@ -186,4 +227,13 @@ def error():
 
 if __name__ == '__main__':
     logger.info("Starting demo frontend application")
+    
+    # Start auto-traffic generation in background thread
+    if AUTO_TRAFFIC_ENABLED:
+        traffic_thread = threading.Thread(target=generate_auto_traffic, daemon=True)
+        traffic_thread.start()
+        logger.info("Auto-traffic generation thread started")
+    else:
+        logger.info("Auto-traffic generation disabled")
+    
     app.run(host='0.0.0.0', port=5000)
