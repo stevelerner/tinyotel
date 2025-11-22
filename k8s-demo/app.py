@@ -11,6 +11,10 @@ import requests
 import threading
 import os
 from flask import Flask, jsonify
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 # Configure structured JSON logging
 logging.basicConfig(
@@ -27,6 +31,86 @@ def log_json(level, message, **kwargs):
         **kwargs
     }
     getattr(logger, level)(json.dumps(log_data))
+
+# Set up custom metrics exporter
+# Note: Auto-instrumentation handles traces/logs, but we need to set up metrics manually
+print("Setting up metrics exporter...", flush=True)
+metric_exporter = OTLPMetricExporter(
+    endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+    insecure=True
+)
+metric_reader = PeriodicExportingMetricReader(
+    metric_exporter, 
+    export_interval_millis=int(os.getenv('OTEL_METRIC_EXPORT_INTERVAL', '5000'))
+)
+meter_provider = MeterProvider(metric_readers=[metric_reader])
+metrics.set_meter_provider(meter_provider)
+
+meter = metrics.get_meter(__name__)
+print(f"Metrics configured with endpoint: {os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317')}", flush=True)
+
+# Create custom metrics
+# Counter: Tracks cumulative values (always increasing)
+order_counter = meter.create_counter(
+    name="frontend.orders.total",
+    description="Total number of orders processed",
+    unit="orders"
+)
+
+request_counter = meter.create_counter(
+    name="frontend.requests.total",
+    description="Total number of requests by endpoint",
+    unit="requests"
+)
+
+error_counter = meter.create_counter(
+    name="frontend.errors.total",
+    description="Total number of errors",
+    unit="errors"
+)
+
+# Histogram: Records distribution of values
+response_time_histogram = meter.create_histogram(
+    name="frontend.response.duration",
+    description="Response time distribution",
+    unit="ms"
+)
+
+order_value_histogram = meter.create_histogram(
+    name="frontend.order.value",
+    description="Order value distribution",
+    unit="dollars"
+)
+
+# UpDownCounter: Can go up and down (for gauges)
+active_requests = meter.create_up_down_counter(
+    name="frontend.requests.active",
+    description="Number of active requests",
+    unit="requests"
+)
+
+# Observable Gauge: Reports current value at collection time
+def get_queue_size():
+    """Simulated queue size"""
+    return [metrics.Observation(random.randint(0, 50))]
+
+queue_gauge = meter.create_observable_gauge(
+    name="frontend.queue.size",
+    description="Current queue size",
+    unit="items",
+    callbacks=[get_queue_size]
+)
+
+def get_memory_usage():
+    """Simulated memory usage percentage"""
+    return [metrics.Observation(random.uniform(45.0, 85.0))]
+
+memory_gauge = meter.create_observable_gauge(
+    name="frontend.memory.usage",
+    description="Memory usage percentage",
+    unit="percent",
+    callbacks=[get_memory_usage]
+)
 
 app = Flask(__name__)
 
@@ -72,15 +156,34 @@ def generate_auto_traffic():
 
 @app.route('/')
 def home():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "home", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     logger.info("Home endpoint called")
-    return jsonify({
+    result = jsonify({
         "message": "TinyOlly Demo App",
         "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"],
         "auto_traffic": "enabled" if AUTO_TRAFFIC_ENABLED else "disabled"
     })
+    
+    # Record response time
+    duration_ms = (time.time() - start_time) * 1000
+    response_time_histogram.record(duration_ms, {"endpoint": "home"})
+    active_requests.add(-1)
+    
+    return result
 
 @app.route('/hello')
 def hello():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "hello", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     name = random.choice(["Alice", "Bob", "Charlie", "Diana"])
     logger.info(f"Greeting user: {name}")
     
@@ -90,13 +193,26 @@ def hello():
     
     logger.info(f"Completed greeting for {name}")
     
-    return jsonify({
+    result = jsonify({
         "message": f"Hello, {name}!",
         "timestamp": time.time()
     })
+    
+    # Record response time
+    duration_ms = (time.time() - start_time) * 1000
+    response_time_histogram.record(duration_ms, {"endpoint": "hello"})
+    active_requests.add(-1)
+    
+    return result
 
 @app.route('/calculate')
 def calculate():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "calculate", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     logger.info("Starting calculation")
     
     # Simulate complex calculation
@@ -123,23 +239,33 @@ def process_order():
     Complex endpoint showing distributed tracing across services.
     All spans are automatically created by OpenTelemetry instrumentation!
     """
+    # Record metrics
+    request_counter.add(1, {"endpoint": "process_order", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     # Generate order details
     order_id = random.randint(1000, 9999)
     customer_id = random.randint(100, 999)
     item_count = random.randint(1, 5)
     base_price = random.uniform(10.0, 100.0) * item_count
     
-    logger.info(f"Processing order {order_id} for customer {customer_id} with {item_count} items")
+    log_json('info', "Processing order", 
+             order_id=order_id, 
+             customer_id=customer_id, 
+             item_count=item_count,
+             operation="order_start")
     
     # Step 1: Validate request (local work)
-    logger.info(f"Validating order {order_id}")
+    log_json('info', "Validating order", order_id=order_id, step="validation")
     time.sleep(random.uniform(0.02, 0.05))
-    logger.info("Order validation successful")
+    log_json('info', "Order validation successful", order_id=order_id, step="validation")
     
     try:
         # Step 2: Check inventory via backend service
         # OpenTelemetry auto-instrumentation automatically creates distributed trace!
-        logger.info(f"Checking inventory for {item_count} items")
+        log_json('info', "Checking inventory", item_count=item_count, step="inventory_check")
         inventory_response = requests.post(
             f"{BACKEND_URL}/check-inventory",
             json={"items": item_count},
@@ -149,17 +275,23 @@ def process_order():
         in_stock = inventory_data.get('available', True)
         
         if not in_stock:
-            logger.warning("Items not available")
+            log_json('warning', "Items not available", 
+                    item_count=item_count, 
+                    reason="out_of_stock")
             return jsonify({
                 "status": "failed",
                 "order_id": order_id,
                 "message": "Items out of stock"
             }), 409
         
-        logger.info("Inventory check complete - items available")
+        log_json('info', "Inventory check complete", 
+                item_count=item_count, 
+                status="available")
         
         # Step 3: Calculate pricing via backend service
-        logger.info("Calculating order pricing")
+        log_json('info', "Calculating order pricing", 
+                item_count=item_count, 
+                base_price=round(base_price, 2))
         pricing_response = requests.post(
             f"{BACKEND_URL}/calculate-price",
             json={"items": item_count, "base_price": base_price},
@@ -168,15 +300,22 @@ def process_order():
         pricing_data = pricing_response.json()
         total_price = pricing_data.get('total', 0)
         
-        logger.info(f"Pricing calculation complete: ${total_price:.2f}")
+        log_json('info', "Pricing calculation complete", 
+                total_price=round(total_price, 2), 
+                step="pricing")
         
         # Step 4: Reserve inventory (local work)
-        logger.info(f"Reserving {item_count} items")
+        log_json('info', "Reserving inventory", 
+                item_count=item_count, 
+                step="reservation")
         time.sleep(random.uniform(0.06, 0.1))
-        logger.info("Inventory reserved")
+        log_json('info', "Inventory reserved", 
+                item_count=item_count)
         
         # Step 5: Process payment via backend service
-        logger.info(f"Processing payment of ${total_price:.2f}")
+        log_json('info', "Processing payment", 
+                amount=round(total_price, 2), 
+                step="payment")
         payment_response = requests.post(
             f"{BACKEND_URL}/process-payment",
             json={"amount": total_price},
@@ -196,6 +335,13 @@ def process_order():
             
             logger.info(f"Order {order_id} completed successfully")
             
+            # Record successful order metrics
+            order_counter.add(1, {"status": "success"})
+            order_value_histogram.record(total_price, {"status": "success"})
+            duration_ms = (time.time() - start_time) * 1000
+            response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "success"})
+            active_requests.add(-1)
+            
             return jsonify({
                 "status": "success",
                 "order_id": order_id,
@@ -208,6 +354,13 @@ def process_order():
         else:
             logger.error("Payment declined")
             
+            # Record failed order metrics
+            order_counter.add(1, {"status": "declined"})
+            error_counter.add(1, {"type": "payment_declined"})
+            duration_ms = (time.time() - start_time) * 1000
+            response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "failed"})
+            active_requests.add(-1)
+            
             return jsonify({
                 "status": "failed",
                 "order_id": order_id,
@@ -217,6 +370,13 @@ def process_order():
     except requests.exceptions.RequestException as e:
         logger.error(f"Backend service error: {str(e)}")
         
+        # Record error metrics
+        order_counter.add(1, {"status": "error"})
+        error_counter.add(1, {"type": "backend_error"})
+        duration_ms = (time.time() - start_time) * 1000
+        response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "error"})
+        active_requests.add(-1)
+        
         return jsonify({
             "status": "error",
             "order_id": order_id,
@@ -225,25 +385,38 @@ def process_order():
 
 @app.route('/error')
 def error():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "error", "method": "GET"})
+    active_requests.add(1)
+    error_counter.add(1, {"type": "intentional"})
+    
     logger.error("Error endpoint called - simulating failure")
     
     # Randomly decide what kind of error
     if random.random() > 0.5:
         logger.error("Raising ValueError")
+        active_requests.add(-1)
         raise ValueError("Simulated error for testing")
     else:
         logger.warning("Returning error response")
+        active_requests.add(-1)
         return jsonify({"error": "Something went wrong"}), 500
 
 if __name__ == '__main__':
+    print("=" * 60)
+    print("Starting demo frontend application")
+    print(f"AUTO_TRAFFIC_ENABLED: {AUTO_TRAFFIC_ENABLED}")
+    print("=" * 60)
     logger.info("Starting demo frontend application")
     
     # Start auto-traffic generation in background thread
     if AUTO_TRAFFIC_ENABLED:
         traffic_thread = threading.Thread(target=generate_auto_traffic, daemon=True)
         traffic_thread.start()
+        print("✓ Auto-traffic generation thread started")
         logger.info("Auto-traffic generation thread started")
     else:
+        print("✗ Auto-traffic generation disabled")
         logger.info("Auto-traffic generation disabled")
     
     app.run(host='0.0.0.0', port=5000)

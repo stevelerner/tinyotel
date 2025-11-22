@@ -12,6 +12,9 @@ import threading
 import os
 from flask import Flask, jsonify
 from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 # Configure structured JSON logging
 logging.basicConfig(
@@ -29,9 +32,22 @@ def log_json(level, message, **kwargs):
     }
     getattr(logger, level)(json.dumps(log_data))
 
-# Get the meter from the global provider (set up by auto-instrumentation)
-# Don't create a new MeterProvider - use the one from opentelemetry-instrument
+# Set up custom metrics exporter
+# Note: Auto-instrumentation handles traces/logs, but we need to set up metrics manually
+print("Setting up metrics exporter...", flush=True)
+metric_exporter = OTLPMetricExporter(
+    endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+    insecure=True
+)
+metric_reader = PeriodicExportingMetricReader(
+    metric_exporter, 
+    export_interval_millis=int(os.getenv('OTEL_METRIC_EXPORT_INTERVAL', '5000'))
+)
+meter_provider = MeterProvider(metric_readers=[metric_reader])
+metrics.set_meter_provider(meter_provider)
+
 meter = metrics.get_meter(__name__)
+print(f"Metrics configured with endpoint: {os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317')}", flush=True)
 
 # Create custom metrics
 # Counter: Tracks cumulative values (always increasing)

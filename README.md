@@ -24,16 +24,13 @@ This starts:
 - **TinyOlly UI**: `http://localhost:5005`
 - **TinyOlly OTLP Receiver and its Redis storage**: OTLP observability back end and storage
 
+**Note:** The script automatically rebuilds images if code changes are detected.
+
 **Open the UI:** `http://localhost:5005` (empty until you send data)
 
 **Stop core services:**
 ```bash
 ./02-stop-core.sh
-```
-
-**Rebuild core services (after code changes):**
-```bash
-./03-rebuild.sh
 ```
 
 ### 2. Deploy Demo Apps (Optional)
@@ -47,14 +44,11 @@ cd docker-demo
 
 Wait 30 seconds. **The demo apps automatically generate traffic** - traces, logs, and metrics will appear in the UI!
 
+**Note:** The script automatically rebuilds images if code changes are detected.
+
 **Stop demo apps:**
 ```bash
 ./02-cleanup-demo.sh
-```
-
-**Rebuild demo apps (after code changes):**
-```bash
-./03-rebuild-demo.sh
 ```
 
 This leaves TinyOlly core running. To stop everything:
