@@ -613,12 +613,8 @@ function showSpanJson(spanIndex) {
             <div class="span-json-header">
                 <div class="span-json-title">Span: ${span.name}</div>
                 <div class="span-json-actions">
-                    <button class="span-json-btn" onclick="copySpanJSON(event, ${spanIndex})">
-                        <span class="btn-text">Copy</span>
-                    </button>
-                    <button class="span-json-btn" onclick="downloadSpanJSON(event, ${spanIndex})">
-                        <span class="btn-text">Download</span>
-                    </button>
+                    <button class="span-json-btn" onclick="copySpanJSON(event, ${spanIndex})">Copy</button>
+                    <button class="span-json-btn" onclick="downloadSpanJSON(event, ${spanIndex})">Download</button>
                     <button class="span-json-close" onclick="closeSpanJson()">Close</button>
                 </div>
             </div>
@@ -655,13 +651,22 @@ function copySpanJSON(event, spanIndex) {
     navigator.clipboard.writeText(jsonText).then(() => {
         const button = event.currentTarget;
         const textSpan = button.querySelector('.btn-text');
-        const originalText = textSpan.textContent;
-        textSpan.textContent = 'Copied!';
+        if (textSpan) {
+            textSpan.textContent = 'Copied!';
+        } else {
+            button.textContent = 'Copied!';
+        }
         
         // Keep the "Copied!" message permanently (don't revert)
     }).catch(err => {
         console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard');
+        const button = event.currentTarget;
+        const textSpan = button.querySelector('.btn-text');
+        if (textSpan) {
+            textSpan.textContent = 'Failed';
+        } else {
+            button.textContent = 'Failed';
+        }
     });
 }
 
@@ -685,7 +690,11 @@ function downloadSpanJSON(event, spanIndex) {
     
     const button = event.currentTarget;
     const textSpan = button.querySelector('.btn-text');
-    textSpan.textContent = 'Downloaded!';
+    if (textSpan) {
+        textSpan.textContent = 'Downloaded!';
+    } else {
+        button.textContent = 'Downloaded!';
+    }
     
     // Keep the "Downloaded!" message permanently (don't revert)
 }
