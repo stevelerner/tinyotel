@@ -218,21 +218,75 @@ async function loadTraces() {
             return;
         }
 
-        const limitNote = traces.length >= 50 ? '<div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">Showing last 50 traces (older data available in Redis)</div>' : '';
+        const limitNote = traces.length >= 50 ? '<div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">Showing last 50 traces (older data available in Redis).</div>' : '';
 
-        container.innerHTML = limitNote + traces.map(trace => {
+        // Header row
+        const headerRow = `
+            <div class="trace-header-row" style="display: flex; align-items: center; gap: 15px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); font-weight: bold; font-size: 0.9em; color: var(--text-muted);">
+                <div style="flex: 0 0 100px;">Time</div>
+                <div style="flex: 0 0 260px;">Trace ID</div>
+                <div style="flex: 0 0 60px; text-align: right;">Spans</div>
+                <div style="flex: 0 0 80px;">Duration</div>
+                <div style="flex: 0 0 70px;">Method</div>
+                <div style="flex: 1;">Route / URL</div>
+                <div style="flex: 0 0 60px; text-align: right;">Status</div>
+            </div>
+        `;
+
+        container.innerHTML = limitNote + headerRow + traces.map(trace => {
             const displayTraceId = trace.trace_id.replace(/^0+(?=.)/, '');
+            const startTime = new Date(trace.start_time / 1000000).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+
+            // Determine method, route, and status
+            const method = trace.root_span_method || '';
+            let route = trace.root_span_route || trace.root_span_name;
+
+            // Construct detailed URL info if available
+            if (trace.root_span_url) {
+                route = trace.root_span_url;
+                // Try to highlight scheme and host if possible
+                try {
+                    const url = new URL(trace.root_span_url);
+                    route = `<span style="color: var(--text-muted); font-weight: normal;">${url.protocol}//${url.host}</span>${url.pathname}${url.search}`;
+                } catch (e) {
+                    // If URL parsing fails, just show the full string
+                    route = trace.root_span_url;
+                }
+            } else if (trace.root_span_server_name || trace.root_span_host) {
+                const scheme = trace.root_span_scheme ? trace.root_span_scheme + '://' : '';
+                const host = trace.root_span_host || trace.root_span_server_name || '';
+                const target = trace.root_span_target || trace.root_span_route || '';
+                if (host) {
+                    route = `<span style="color: var(--text-muted); font-weight: normal;">${scheme}${host}</span>${target}`;
+                }
+            }
+
+            let status = trace.root_span_status_code;
+
+            // Fallback to OTLP status if HTTP status is missing
+            if (!status && trace.root_span_status) {
+                if (trace.root_span_status.code === 1) status = 'OK';
+                else if (trace.root_span_status.code === 2) status = 'ERR';
+            }
+
+            // Status color
+            let statusColor = 'var(--text-muted)';
+            if (status) {
+                const s = String(status);
+                if (s.startsWith('2') || s === 'OK') statusColor = 'var(--success)';
+                else if (s.startsWith('4')) statusColor = '#f59e0b'; // Orange
+                else if (s.startsWith('5') || s === 'ERR') statusColor = 'var(--error)';
+            }
 
             return `
-                <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')">
-                    <div class="trace-header">
-                        <div class="trace-name">${trace.root_span_name}</div>
-                        <div class="trace-duration">${trace.duration_ms.toFixed(2)}ms</div>
-                    </div>
-                    <div class="trace-meta">
-                        <span>${trace.span_count} spans</span>
-                        <span class="trace-id">${displayTraceId}</span>
-                    </div>
+                <div class="trace-item" onclick="showTraceDetail('${trace.trace_id}')" style="display: flex; align-items: center; gap: 15px; padding: 8px 12px;">
+                    <div class="trace-time" style="font-family: monospace; color: var(--text-muted); flex: 0 0 100px;">${startTime}</div>
+                    <div class="trace-id" style="flex: 0 0 260px; font-family: monospace; color: var(--text-muted); font-size: 0.9em;">${displayTraceId}</div>
+                    <div class="trace-spans" style="flex: 0 0 60px; text-align: right; color: var(--text-muted);">${trace.span_count}</div>
+                    <div class="trace-duration" style="flex: 0 0 80px; color: var(--text-muted);">${trace.duration_ms.toFixed(2)}ms</div>
+                    <div class="trace-method" style="flex: 0 0 70px; font-weight: bold; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${method}</div>
+                    <div class="trace-name" style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${route}</div>
+                    <div class="trace-status" style="flex: 0 0 60px; text-align: right; color: ${statusColor}; font-weight: 500;">${status || '-'}</div>
                 </div>
             `;
         }).join('');
@@ -611,7 +665,7 @@ function showSpanJson(spanIndex) {
     container.innerHTML = `
         <div class="span-json-container">
             <div class="span-json-header">
-                <div class="span-json-title">Span: ${span.name}</div>
+                <div class="span-json-title">Span: ${span.name} <span style="font-weight: normal; color: var(--text-muted); font-size: 0.9em; margin-left: 8px;">(${span.spanId || span.span_id})</span></div>
                 <div class="span-json-actions">
                     <button class="span-json-btn" onclick="copySpanJSON(event, ${spanIndex})">Copy</button>
                     <button class="span-json-btn" onclick="downloadSpanJSON(event, ${spanIndex})">Download</button>
@@ -682,7 +736,7 @@ function downloadSpanJSON(event, spanIndex) {
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = `span-${span.spanId || span.span_id || 'unknown'}.json`;
+    a.download = `span - ${span.spanId || span.span_id || 'unknown'}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -702,7 +756,7 @@ function downloadSpanJSON(event, spanIndex) {
 
 async function loadLogs() {
     const traceIdFilter = document.getElementById('trace-id-filter').value.trim();
-    const url = traceIdFilter ? `/api/logs?trace_id=${traceIdFilter}` : '/api/logs?limit=100';
+    const url = traceIdFilter ? `/ api / logs ? trace_id = ${traceIdFilter} ` : '/api/logs?limit=100';
 
     try {
         const response = await fetch(url);
@@ -719,7 +773,7 @@ async function loadLogs() {
 
         container.innerHTML = limitNote + logs.map((log, idx) => {
             const stableId = getLogStableId(log);
-            const logId = `log-${idx}-${stableId.replace(/[^a-zA-Z0-9]/g, '')}`;
+            const logId = `log - ${idx} -${stableId.replace(/[^a-zA-Z0-9]/g, '')} `;
             const timestamp = new Date(log.timestamp * 1000).toISOString();
             const severity = log.severity || 'INFO';
             const traceId = log.trace_id || log.traceId || '';
@@ -735,13 +789,13 @@ async function loadLogs() {
             const displaySpanId = spanId ? spanId.replace(/^0+(?=.)/, '') : '';
 
             return `
-                <div class="log-item">
+        < div class="log-item" >
                     <div>
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-severity ${severity}">${severity}</span>
                         ${serviceName ? `<span class="log-service">${serviceName}</span>` : ''}
                         ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
-                        ${spanId ? `<span class="log-span-id">span: ${displaySpanId}</span>` : ''}
+                        ${spanId ? `<span class="log-trace-link" onclick="showSpanFromLog('${traceId}', '${spanId}')">span: <span class="log-trace-id">${displaySpanId}</span></span>` : ''}
                         <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view log json</span>
                     </div>
                     <div class="log-message">${message}</div>
@@ -761,8 +815,8 @@ async function loadLogs() {
                         </div>
                         <pre>${JSON.stringify(log, null, 2)}</pre>
                     </div>
-                </div>
-            `;
+                </div >
+        `;
         }).join('');
     } catch (error) {
         console.error('Error loading logs:', error);
@@ -807,7 +861,7 @@ function downloadLogJSON(logId, timestamp) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `log-${timestamp}.json`;
+    a.download = `log - ${timestamp}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -816,7 +870,7 @@ function downloadLogJSON(logId, timestamp) {
 
 async function loadTraceLog(traceId) {
     try {
-        const response = await fetch(`/api/logs?trace_id=${traceId}`);
+        const response = await fetch(`/ api / logs ? trace_id = ${traceId} `);
         const logs = await response.json();
 
         const container = document.getElementById('trace-logs-container');
@@ -827,7 +881,7 @@ async function loadTraceLog(traceId) {
         }
 
         container.innerHTML = logs.map((log, idx) => {
-            const logId = `trace-log-${idx}`;
+            const logId = `trace - log - ${idx} `;
             const timestamp = new Date(log.timestamp * 1000).toISOString();
             const severity = log.severity || 'INFO';
             const message = log.message || '';
@@ -840,7 +894,7 @@ async function loadTraceLog(traceId) {
             const displaySpanId = spanId ? spanId.replace(/^0+(?=.)/, '') : '';
 
             return `
-                <div class="log-item">
+        < div class="log-item" >
                     <div>
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-severity ${severity}">${severity}</span>
@@ -858,8 +912,8 @@ async function loadTraceLog(traceId) {
                         </div>
                         <pre>${JSON.stringify(log, null, 2)}</pre>
                     </div>
-                </div>
-            `;
+                </div >
+        `;
         }).join('');
     } catch (error) {
         console.error('Error loading trace logs:', error);
@@ -883,6 +937,41 @@ function showTraceFromLog(traceId) {
 
     // Show trace detail
     setTimeout(() => showTraceDetail(traceId), 100);
+}
+
+function showSpanFromLog(traceId, spanId) {
+    // Reset trace JSON state when navigating from log
+    traceJsonOpen = false;
+
+    // Switch to traces tab
+    currentTab = 'traces';
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+        if (t.getAttribute('data-tab') === 'traces') {
+            t.classList.add('active');
+        }
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('traces-tab').classList.add('active');
+
+    // Show trace detail and then open span JSON
+    setTimeout(async () => {
+        await showTraceDetail(traceId);
+
+        // Find the span index
+        if (currentTraceData && currentTraceData.spans) {
+            const spanIndex = currentTraceData.spans.findIndex(s =>
+                s.spanId === spanId || s.span_id === spanId
+            );
+
+            if (spanIndex !== -1) {
+                // Wait for DOM to update
+                setTimeout(() => {
+                    showSpanJson(spanIndex);
+                }, 100);
+            }
+        }
+    }, 100);
 }
 
 function clearLogFilter() {
@@ -914,12 +1003,12 @@ async function loadMetrics() {
         let warningHtml = '';
         if (cardinality.dropped_count > 0) {
             warningHtml = `
-                <div style="background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ffeeba;">
-                    <strong>Warning:</strong> High cardinality detected. 
-                    ${cardinality.dropped_count} metrics were dropped. 
-                    (Current: ${cardinality.current_count}/${cardinality.max_limit})
-                </div>
-            `;
+        < div style = "background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ffeeba;" >
+            <strong>Warning:</strong> High cardinality detected.
+                ${cardinality.dropped_count} metrics were dropped. 
+                    (Current: ${cardinality.current_count} / ${cardinality.max_limit})
+                </div >
+        `;
         }
 
         if (metricNames.length === 0) {
@@ -961,7 +1050,7 @@ async function loadMetrics() {
 
 async function fetchMetricTypeAndValue(name) {
     try {
-        const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
+        const response = await fetch(`/ api / metrics / ${encodeURIComponent(name)} `);
         const data = await response.json();
 
         // API returns {name: ..., data: [...]}
@@ -989,7 +1078,7 @@ async function fetchMetricTypeAndValue(name) {
             };
         }
     } catch (err) {
-        console.error(`Error fetching metric type for ${name}:`, err);
+        console.error(`Error fetching metric type for ${name}: `, err);
     }
 }
 
@@ -1062,7 +1151,7 @@ function renderMetricsTable(warningHtml, container) {
 
     // Render table header
     const tableHeader = `
-        <div class="metrics-table-header">
+        < div class="metrics-table-header" >
             <div class="metric-header-cell metric-col-name" onclick="sortMetrics('name')">
                 Metric Name ${metricSortColumn === 'name' ? (metricSortDirection === 'asc' ? '▲' : '▼') : ''}
             </div>
@@ -1072,8 +1161,8 @@ function renderMetricsTable(warningHtml, container) {
             <div class="metric-header-cell metric-col-value" onclick="sortMetrics('value')">
                 Value ${metricSortColumn === 'value' ? (metricSortDirection === 'asc' ? '▲' : '▼') : ''}
             </div>
-        </div>
-    `;
+        </div >
+        `;
 
     // Render metric rows
     const metricsHtml = sortedMetrics.map(name => {
@@ -1084,7 +1173,7 @@ function renderMetricsTable(warningHtml, container) {
         const value = latestData?.value !== undefined ? formatMetricValue(latestData.value, type) : '-';
 
         return `
-            <div class="metric-row ${isExpanded ? 'expanded' : ''}" id="metric-row-${safeId}" data-metric-name="${name}">
+        < div class="metric-row ${isExpanded ? 'expanded' : ''}" id = "metric-row-${safeId}" data - metric - name="${name}" >
                 <div class="metric-header" onclick="toggleMetric('${name}')">
                     <div class="metric-cell metric-col-name">${name}</div>
                     <div class="metric-cell metric-col-type">
@@ -1121,7 +1210,7 @@ function renderMetricsTable(warningHtml, container) {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
         `;
     }).join('');
 
@@ -1172,7 +1261,7 @@ function formatMetricValue(value, type) {
 
 function toggleMetric(name) {
     const safeId = getSafeId(name);
-    const row = document.getElementById(`metric-row-${safeId}`);
+    const row = document.getElementById(`metric - row - ${safeId} `);
 
     if (expandedMetrics.has(name)) {
         // Collapse
@@ -1219,7 +1308,7 @@ async function updateMetricRowData(name) {
     const safeId = getSafeId(name);
 
     try {
-        const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
+        const response = await fetch(`/ api / metrics / ${encodeURIComponent(name)} `);
         const data = await response.json();
 
         // API returns {name: ..., data: [...]}
@@ -1246,7 +1335,7 @@ async function updateMetricRowData(name) {
             };
 
             // Update value display
-            const valueEl = document.getElementById(`metric-value-${safeId}`);
+            const valueEl = document.getElementById(`metric - value - ${safeId} `);
             if (valueEl) {
                 valueEl.textContent = formatMetricValue(value, type);
             }
@@ -1257,7 +1346,7 @@ async function updateMetricRowData(name) {
             updateMetricData(name);
         }
     } catch (error) {
-        console.error(`Error updating metric ${name}:`, error);
+        console.error(`Error updating metric ${name}: `, error);
     }
 }
 
@@ -1266,7 +1355,7 @@ let lastTimestamps = {}; // Track last timestamp for each metric
 
 function initMetricChart(name) {
     const safeId = getSafeId(name);
-    const chartId = `metric-${safeId}`;
+    const chartId = `metric - ${safeId} `;
     const canvas = document.querySelector(`#${chartId} canvas`);
     if (!canvas) return;
 
@@ -1331,7 +1420,7 @@ function initMetricChart(name) {
 
 async function updateMetricData(name) {
     try {
-        const response = await fetch(`/api/metrics/${name}`);
+        const response = await fetch(`/ api / metrics / ${name} `);
         const data = await response.json();
 
         if (data.data.length === 0 || !metricCharts[name]) return;
@@ -1350,7 +1439,7 @@ async function updateMetricData(name) {
 
         // Show/hide histogram info
         const safeId = getSafeId(name);
-        const histogramInfoId = `histogram-${safeId}`;
+        const histogramInfoId = `histogram - ${safeId} `;
         const histogramInfo = document.getElementById(histogramInfoId);
         if (histogramInfo) {
             histogramInfo.style.display = isHistogram ? 'block' : 'none';
@@ -1404,7 +1493,7 @@ async function updateMetricData(name) {
         }
 
     } catch (error) {
-        console.error(`Error updating metric ${name}:`, error);
+        console.error(`Error updating metric ${name}: `, error);
     }
 }
 
@@ -1413,16 +1502,16 @@ function updateHistogramDisplay(name, histogramData) {
 
     // Update stats
     if (histogramData.min !== null && histogramData.min !== undefined) {
-        document.getElementById(`hist-min-${safeId}`).textContent = histogramData.min.toFixed(2);
+        document.getElementById(`hist - min - ${safeId} `).textContent = histogramData.min.toFixed(2);
     }
     if (histogramData.average !== null && histogramData.average !== undefined) {
-        document.getElementById(`hist-avg-${safeId}`).textContent = histogramData.average.toFixed(2);
+        document.getElementById(`hist - avg - ${safeId} `).textContent = histogramData.average.toFixed(2);
     }
     if (histogramData.max !== null && histogramData.max !== undefined) {
-        document.getElementById(`hist-max-${safeId}`).textContent = histogramData.max.toFixed(2);
+        document.getElementById(`hist - max - ${safeId} `).textContent = histogramData.max.toFixed(2);
     }
     if (histogramData.count !== null && histogramData.count !== undefined) {
-        document.getElementById(`hist-count-${safeId}`).textContent = histogramData.count;
+        document.getElementById(`hist - count - ${safeId} `).textContent = histogramData.count;
     }
 
     // Update bucket chart
@@ -1433,7 +1522,7 @@ function updateHistogramDisplay(name, histogramData) {
 
 function updateHistogramBuckets(name, buckets) {
     const safeId = getSafeId(name);
-    const containerId = `histogram-bucket-${safeId}`;
+    const containerId = `histogram - bucket - ${safeId} `;
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -1456,19 +1545,19 @@ function updateHistogramBuckets(name, buckets) {
         if (bucket.bound === null) {
             // This is the +Inf bucket (last bucket)
             if (i > 0 && buckets[i - 1].bound !== null) {
-                return `≥${buckets[i - 1].bound}`;
+                return `≥${buckets[i - 1].bound} `;
             }
             return '+Inf';
         } else if (i === 0) {
             // First bucket: (-inf, bound)
-            return `<${bucket.bound}`;
+            return `< ${bucket.bound} `;
         } else {
             // Middle buckets: [prev_bound, bound)
             const prevBound = buckets[i - 1].bound;
             if (prevBound === null) {
-                return `<${bucket.bound}`;
+                return `< ${bucket.bound} `;
             }
-            return `${prevBound}-${bucket.bound}`;
+            return `${prevBound} -${bucket.bound} `;
         }
     });
     const counts = buckets.map(b => b.count);

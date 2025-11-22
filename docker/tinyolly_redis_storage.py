@@ -96,12 +96,54 @@ class Storage:
         # Find root span (no parent)
         root_span = next((s for s in spans if not s.get('parentSpanId') and not s.get('parent_span_id')), spans[0] if spans else None)
         
+        # Extract root span details
+        root_span_method = None
+        root_span_route = None
+        root_span_status_code = None
+        
+        if root_span:
+            # Helper to get attribute value
+            def get_attr(span, keys):
+                attributes = span.get('attributes', [])
+                # Handle both list of dicts (OTLP) and dict (if normalized)
+                if isinstance(attributes, list):
+                    for attr in attributes:
+                        if attr.get('key') in keys:
+                            val = attr.get('value', {})
+                            if 'stringValue' in val: return val['stringValue']
+                            if 'intValue' in val: return val['intValue']
+                            if 'boolValue' in val: return val['boolValue']
+                            return str(val)
+                elif isinstance(attributes, dict):
+                    for key in keys:
+                        if key in attributes:
+                            return attributes[key]
+                return None
+
+            root_span_method = get_attr(root_span, ['http.method', 'http.request.method'])
+            root_span_route = get_attr(root_span, ['http.route', 'http.target', 'url.path'])
+            root_span_status_code = get_attr(root_span, ['http.status_code', 'http.response.status_code'])
+            root_span_server_name = get_attr(root_span, ['http.server_name', 'net.host.name'])
+            root_span_scheme = get_attr(root_span, ['http.scheme', 'url.scheme'])
+            root_span_host = get_attr(root_span, ['http.host', 'net.host.name'])
+            root_span_target = get_attr(root_span, ['http.target', 'url.path'])
+            root_span_url = get_attr(root_span, ['http.url', 'url.full'])
+            
         return {
             'trace_id': trace_id,
             'span_count': len(spans),
             'duration_ms': duration_ns / 1_000_000 if duration_ns else 0,
             'start_time': min_start,
-            'root_span_name': root_span.get('name', 'unknown') if root_span else 'unknown'
+            'root_span_name': root_span.get('name', 'unknown') if root_span else 'unknown',
+            'root_span_method': root_span_method,
+            'root_span_route': root_span_route,
+            'root_span_status_code': root_span_status_code,
+            'root_span_status': root_span.get('status', {}) if root_span else {},
+            'root_span_server_name': root_span_server_name,
+            'root_span_scheme': root_span_scheme,
+            'root_span_host': root_span_host,
+            'root_span_target': root_span_target,
+            'root_span_url': root_span_url
         }
 
     # ============================================
