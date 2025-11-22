@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateAutoRefreshButton();
 
     loadStats();
-    
+
     // Start auto-refresh if enabled
     if (autoRefreshEnabled) {
         startAutoRefresh();
@@ -65,7 +65,7 @@ function setTheme(theme) {
 function startAutoRefresh() {
     // Stop any existing interval first
     stopAutoRefresh();
-    
+
     // Auto-refresh for all tabs
     console.log('Auto-refresh started');
     autoRefreshInterval = setInterval(() => {
@@ -91,7 +91,7 @@ function restoreActiveTab() {
     // Activate the saved tab or default to logs
     const savedTab = localStorage.getItem('tinyolly-active-tab') || 'logs';
     currentTab = savedTab;
-    
+
     // Update UI to show correct tab
     document.querySelectorAll('.tab').forEach(t => {
         if (t.textContent.toLowerCase().includes(savedTab)) {
@@ -100,17 +100,17 @@ function restoreActiveTab() {
             t.classList.remove('active');
         }
     });
-    
+
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(savedTab + '-tab').classList.add('active');
-    
+
     // Load data for the restored tab
     refreshCurrentTab();
 }
 
 function switchTab(tab, element) {
     currentTab = tab;
-    
+
     // Save tab selection
     localStorage.setItem('tinyolly-active-tab', tab);
 
@@ -128,10 +128,10 @@ function switchTab(tab, element) {
 
 function refreshCurrentTab() {
     console.log('Refreshing tab:', currentTab);
-    
+
     // Refresh stats
     loadStats();
-    
+
     // Load current tab data
     if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
         console.log('Loading traces...');
@@ -151,7 +151,7 @@ function refreshCurrentTab() {
 function toggleAutoRefresh() {
     autoRefreshEnabled = !autoRefreshEnabled;
     localStorage.setItem('tinyolly-auto-refresh', autoRefreshEnabled);
-    
+
     if (autoRefreshEnabled) {
         console.log('Auto-refresh enabled');
         startAutoRefresh();
@@ -159,14 +159,14 @@ function toggleAutoRefresh() {
         console.log('Auto-refresh paused');
         stopAutoRefresh();
     }
-    
+
     updateAutoRefreshButton();
 }
 
 function updateAutoRefreshButton() {
     const btn = document.getElementById('auto-refresh-btn');
     const icon = document.getElementById('refresh-icon');
-    
+
     if (autoRefreshEnabled) {
         icon.textContent = '⏸';
         btn.title = 'Pause auto-refresh';
@@ -191,7 +191,7 @@ async function loadStats() {
         const stats = await response.json();
         document.getElementById('stat-traces').textContent = stats.traces;
         document.getElementById('stat-logs').textContent = stats.logs;
-        
+
         // Show cardinality info for metrics
         let metricsText = stats.metrics;
         if (stats.metrics_max) {
@@ -642,12 +642,12 @@ function closeSpanJson() {
 
 function copySpanJSON(event, spanIndex) {
     event.stopPropagation();
-    
+
     if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
-    
+
     const span = currentTraceData.spans[spanIndex];
     const jsonText = JSON.stringify(span, null, 2);
-    
+
     navigator.clipboard.writeText(jsonText).then(() => {
         const button = event.currentTarget;
         const textSpan = button.querySelector('.btn-text');
@@ -656,7 +656,7 @@ function copySpanJSON(event, spanIndex) {
         } else {
             button.textContent = 'Copied!';
         }
-        
+
         // Keep the "Copied!" message permanently (don't revert)
     }).catch(err => {
         console.error('Failed to copy:', err);
@@ -672,14 +672,14 @@ function copySpanJSON(event, spanIndex) {
 
 function downloadSpanJSON(event, spanIndex) {
     event.stopPropagation();
-    
+
     if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
-    
+
     const span = currentTraceData.spans[spanIndex];
     const jsonText = JSON.stringify(span, null, 2);
     const blob = new Blob([jsonText], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `span-${span.spanId || span.span_id || 'unknown'}.json`;
@@ -687,7 +687,7 @@ function downloadSpanJSON(event, spanIndex) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     const button = event.currentTarget;
     const textSpan = button.querySelector('.btn-text');
     if (textSpan) {
@@ -695,7 +695,7 @@ function downloadSpanJSON(event, spanIndex) {
     } else {
         button.textContent = 'Downloaded!';
     }
-    
+
     // Keep the "Downloaded!" message permanently (don't revert)
 }
 
@@ -786,7 +786,7 @@ function copyLogJSON(logId) {
     const preElement = jsonView.querySelector('pre');
     const jsonContent = preElement.textContent;
     const button = event.target;
-    
+
     navigator.clipboard.writeText(jsonContent).then(() => {
         button.textContent = 'Copied!';
         button.style.background = 'var(--success)';
@@ -906,7 +906,7 @@ async function loadMetrics() {
     try {
         const response = await fetch('/api/metrics?limit=500');
         const data = await response.json();
-        
+
         const metricNames = data.names || [];
         const cardinality = data.cardinality || {};
 
@@ -915,7 +915,7 @@ async function loadMetrics() {
         // Show cardinality warning if needed
         const cardinalityPercent = (cardinality.current / cardinality.max) * 100;
         let warningHtml = '';
-        
+
         if (cardinalityPercent > 90) {
             warningHtml = `<div style="padding: 10px; background: #ff4444; color: white; border-radius: 4px; margin-bottom: 10px;">
                 ⚠️ High cardinality: ${cardinality.current}/${cardinality.max} metrics (${cardinalityPercent.toFixed(0)}%)
@@ -932,7 +932,7 @@ async function loadMetrics() {
             currentMetricNames = [];
             return;
         }
-        
+
         // Show info about limited display
         if (metricNames.length >= 500) {
             warningHtml += `<div style="padding: 8px; background: #2196F3; color: white; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
@@ -967,24 +967,24 @@ async function fetchMetricTypeAndValue(name) {
     try {
         const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
         const data = await response.json();
-        
+
         // API returns {name: ..., data: [...]}
         const points = data.data || [];
-        
+
         if (points && points.length > 0) {
             // Get the most recent point
             const point = points[points.length - 1];
-            
+
             // Get the metric type from the stored data
             let type = point.type || 'counter';
             let value = point.value || 0;
-            
+
             // For histograms, use the average value
             if (type === 'histogram' && point.histogram) {
                 const hist = point.histogram;
                 value = hist.average || ((hist.sum && hist.count) ? hist.sum / hist.count : 0);
             }
-            
+
             metricTypes[name] = type;
             metricLatestValues[name] = {
                 type: type,
@@ -997,11 +997,54 @@ async function fetchMetricTypeAndValue(name) {
     }
 }
 
+// Helper for consistent ID generation
+function getSafeId(name) {
+    return name.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+function calculateMedian(histogram) {
+    if (!histogram.buckets || histogram.buckets.length === 0) return 0;
+
+    const total = histogram.count;
+    const target = total / 2;
+    let current = 0;
+
+    for (let i = 0; i < histogram.buckets.length; i++) {
+        const bucket = histogram.buckets[i];
+        current += bucket.count;
+
+        if (current >= target) {
+            // Found the bucket
+            const bound = bucket.bound;
+            // For the first bucket, we assume the lower bound is 0 or -Inf, but for visualization
+            // usually returning the upper bound is a decent approximation if we don't know better.
+            // However, if we have a previous bound, we can take the midpoint.
+            const prevBound = i > 0 ? histogram.buckets[i - 1].bound : 0;
+
+            if (bound === null) {
+                // +Inf bucket: (prevBound, +Inf)
+                // Just return prevBound as a conservative estimate
+                return prevBound;
+            }
+
+            if (i === 0) {
+                // First bucket: (-Inf, bound]
+                // Return bound as it's the most significant number we have
+                return bound;
+            }
+
+            // Normal bucket: (prevBound, bound]
+            return (prevBound + bound) / 2;
+        }
+    }
+    return 0;
+}
+
 function renderMetricsTable(warningHtml, container) {
     // Sort metrics
     const sortedMetrics = [...currentMetricNames].sort((a, b) => {
         let comparison = 0;
-        
+
         if (metricSortColumn === 'name') {
             comparison = a.localeCompare(b);
         } else if (metricSortColumn === 'type') {
@@ -1017,7 +1060,7 @@ function renderMetricsTable(warningHtml, container) {
             const valueB = metricLatestValues[b]?.value || 0;
             comparison = valueA - valueB;
         }
-        
+
         return metricSortDirection === 'asc' ? comparison : -comparison;
     });
 
@@ -1038,12 +1081,12 @@ function renderMetricsTable(warningHtml, container) {
 
     // Render metric rows
     const metricsHtml = sortedMetrics.map(name => {
-        const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+        const safeId = getSafeId(name);
         const isExpanded = expandedMetrics.has(name);
         const type = metricTypes[name] || 'counter';
         const latestData = metricLatestValues[name];
         const value = latestData?.value !== undefined ? formatMetricValue(latestData.value, type) : '-';
-        
+
         return `
             <div class="metric-row ${isExpanded ? 'expanded' : ''}" id="metric-row-${safeId}" data-metric-name="${name}">
                 <div class="metric-header" onclick="toggleMetric('${name}')">
@@ -1085,7 +1128,7 @@ function renderMetricsTable(warningHtml, container) {
             </div>
         `;
     }).join('');
-    
+
     // Combine warning, header, and metrics HTML
     container.innerHTML = warningHtml + tableHeader + metricsHtml;
 
@@ -1106,7 +1149,7 @@ function sortMetrics(column) {
         metricSortColumn = column;
         metricSortDirection = 'asc';
     }
-    
+
     // Re-render the table
     const container = document.getElementById('metrics-container');
     const warnings = container.querySelector('[style*="background"]')?.outerHTML || '';
@@ -1115,10 +1158,12 @@ function sortMetrics(column) {
 
 function formatMetricValue(value, type) {
     if (value === null || value === undefined) return '-';
-    
+
     // Format based on type
-    if (type === 'histogram' || type === 'gauge') {
-        // Show decimal places for histograms and gauges
+    if (type === 'histogram') {
+        // Show decimal places for histograms
+        return 'Median: ' + value.toFixed(2);
+    } else if (type === 'gauge') {
         return value.toFixed(2);
     } else {
         // Counters: show as integer if it's a whole number
@@ -1130,14 +1175,14 @@ function formatMetricValue(value, type) {
 }
 
 function toggleMetric(name) {
-    const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+    const safeId = getSafeId(name);
     const row = document.getElementById(`metric-row-${safeId}`);
-    
+
     if (expandedMetrics.has(name)) {
         // Collapse
         expandedMetrics.delete(name);
         row.classList.remove('expanded');
-        
+
         // Destroy chart to save resources
         if (metricCharts[name]) {
             metricCharts[name].destroy();
@@ -1151,7 +1196,7 @@ function toggleMetric(name) {
         // Expand
         expandedMetrics.add(name);
         row.classList.add('expanded');
-        
+
         // Initialize chart
         setTimeout(() => {
             initMetricChart(name);
@@ -1163,7 +1208,7 @@ function toggleMetric(name) {
 function filterMetrics() {
     const searchTerm = document.getElementById('metric-search').value.toLowerCase();
     const rows = document.querySelectorAll('.metric-row');
-    
+
     rows.forEach(row => {
         const metricName = row.dataset.metricName.toLowerCase();
         if (metricName.includes(searchTerm)) {
@@ -1175,43 +1220,42 @@ function filterMetrics() {
 }
 
 async function updateMetricRowData(name) {
-    const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
-    
+    const safeId = getSafeId(name);
+
     try {
         const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
         const data = await response.json();
-        
+
         // API returns {name: ..., data: [...]}
         const points = data.data || [];
-        
+
         if (points && points.length > 0) {
             // Get the most recent point
             const point = points[points.length - 1];
-            
+
             // Get the metric type from the stored data
             let type = point.type || 'counter';
             let value = point.value || 0;
-            
-            // For histograms, use the average value
+
+            // For histograms, use the median value
             if (type === 'histogram' && point.histogram) {
-                const hist = point.histogram;
-                value = hist.average || ((hist.sum && hist.count) ? hist.sum / hist.count : 0);
+                value = calculateMedian(point.histogram);
             }
-            
+
             metricTypes[name] = type;
             metricLatestValues[name] = {
                 type: type,
                 value: value,
                 rawPoint: point
             };
-            
+
             // Update value display
             const valueEl = document.getElementById(`metric-value-${safeId}`);
             if (valueEl) {
                 valueEl.textContent = formatMetricValue(value, type);
             }
         }
-        
+
         // If expanded, update the chart
         if (expandedMetrics.has(name)) {
             updateMetricData(name);
@@ -1225,7 +1269,8 @@ const MAX_POINTS = 30;
 let lastTimestamps = {}; // Track last timestamp for each metric
 
 function initMetricChart(name) {
-    const chartId = `metric-${name.replace(/\./g, '-')}`;
+    const safeId = getSafeId(name);
+    const chartId = `metric-${safeId}`;
     const canvas = document.querySelector(`#${chartId} canvas`);
     if (!canvas) return;
 
@@ -1308,7 +1353,8 @@ async function updateMetricData(name) {
         const isHistogram = latestPoint && latestPoint.histogram;
 
         // Show/hide histogram info
-        const histogramInfoId = `histogram-${name.replace(/\./g, '-')}`;
+        const safeId = getSafeId(name);
+        const histogramInfoId = `histogram-${safeId}`;
         const histogramInfo = document.getElementById(histogramInfoId);
         if (histogramInfo) {
             histogramInfo.style.display = isHistogram ? 'block' : 'none';
@@ -1318,7 +1364,15 @@ async function updateMetricData(name) {
         let addedCount = 0;
         for (const point of newPoints) {
             const timestamp = new Date(point.timestamp * 1000).toLocaleTimeString();
-            const value = parseFloat(point.value);
+            let value = parseFloat(point.value);
+
+            // For histograms, use median for the chart too?
+            // The user asked for "column just a single middle bucket value".
+            // For the chart, it might be better to keep average or use median.
+            // Let's stick to what we display in the column for consistency.
+            if (point.type === 'histogram' && point.histogram) {
+                value = calculateMedian(point.histogram);
+            }
 
             // For metrics with labels, aggregate by taking the sum of all label values at this timestamp
             const existingIndex = chart.data.labels.indexOf(timestamp);
@@ -1359,20 +1413,20 @@ async function updateMetricData(name) {
 }
 
 function updateHistogramDisplay(name, histogramData) {
-    const safeName = name.replace(/\./g, '-');
+    const safeId = getSafeId(name);
 
     // Update stats
     if (histogramData.min !== null && histogramData.min !== undefined) {
-        document.getElementById(`hist-min-${safeName}`).textContent = histogramData.min.toFixed(2);
+        document.getElementById(`hist-min-${safeId}`).textContent = histogramData.min.toFixed(2);
     }
     if (histogramData.average !== null && histogramData.average !== undefined) {
-        document.getElementById(`hist-avg-${safeName}`).textContent = histogramData.average.toFixed(2);
+        document.getElementById(`hist-avg-${safeId}`).textContent = histogramData.average.toFixed(2);
     }
     if (histogramData.max !== null && histogramData.max !== undefined) {
-        document.getElementById(`hist-max-${safeName}`).textContent = histogramData.max.toFixed(2);
+        document.getElementById(`hist-max-${safeId}`).textContent = histogramData.max.toFixed(2);
     }
     if (histogramData.count !== null && histogramData.count !== undefined) {
-        document.getElementById(`hist-count-${safeName}`).textContent = histogramData.count;
+        document.getElementById(`hist-count-${safeId}`).textContent = histogramData.count;
     }
 
     // Update bucket chart
@@ -1382,8 +1436,8 @@ function updateHistogramDisplay(name, histogramData) {
 }
 
 function updateHistogramBuckets(name, buckets) {
-    const safeName = name.replace(/\./g, '-');
-    const containerId = `histogram-bucket-${safeName}`;
+    const safeId = getSafeId(name);
+    const containerId = `histogram-bucket-${safeId}`;
     const container = document.getElementById(containerId);
     if (!container) return;
 
