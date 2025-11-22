@@ -227,7 +227,11 @@ def store_metric(metric_data):
                                     histogram_data['buckets'] = buckets
                             else:
                                 # For counters and gauges
-                                value = point.get('asInt', point.get('asDouble', 0))
+                                value = 0
+                                if 'asInt' in point:
+                                    value = int(point['asInt'])
+                                elif 'asDouble' in point:
+                                    value = float(point['asDouble'])
                                 histogram_data = None
                             
                             # Extract attributes/labels
