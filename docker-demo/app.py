@@ -25,8 +25,8 @@ BACKEND_URL = "http://demo-backend:5000"
 
 # Auto-traffic generation settings
 AUTO_TRAFFIC_ENABLED = os.getenv('AUTO_TRAFFIC', 'true').lower() == 'true'
-TRAFFIC_INTERVAL_MIN = int(os.getenv('TRAFFIC_INTERVAL_MIN', '3'))  # seconds
-TRAFFIC_INTERVAL_MAX = int(os.getenv('TRAFFIC_INTERVAL_MAX', '8'))  # seconds
+TRAFFIC_INTERVAL_MIN = int(os.getenv('TRAFFIC_INTERVAL_MIN', '1'))  # seconds
+TRAFFIC_INTERVAL_MAX = int(os.getenv('TRAFFIC_INTERVAL_MAX', '1'))  # seconds
 
 def generate_auto_traffic():
     """Background thread that generates automatic traffic for demo purposes"""

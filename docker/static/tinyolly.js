@@ -612,7 +612,17 @@ function showSpanJson(spanIndex) {
         <div class="span-json-container">
             <div class="span-json-header">
                 <div class="span-json-title">Span: ${span.name}</div>
-                <button class="span-json-close" onclick="closeSpanJson()">Close</button>
+                <div class="span-json-actions">
+                    <button class="span-json-btn" onclick="copySpanJSON(event, ${spanIndex})">
+                        <span class="btn-icon">📋</span>
+                        <span class="btn-text">Copy</span>
+                    </button>
+                    <button class="span-json-btn" onclick="downloadSpanJSON(event, ${spanIndex})">
+                        <span class="btn-icon">💾</span>
+                        <span class="btn-text">Download</span>
+                    </button>
+                    <button class="span-json-close" onclick="closeSpanJson()">Close</button>
+                </div>
             </div>
             <pre class="json-content">${JSON.stringify(span, null, 2)}</pre>
         </div>
@@ -635,6 +645,53 @@ function closeSpanJson() {
     });
     selectedSpanIndex = null;
 }
+
+function copySpanJSON(event, spanIndex) {
+    event.stopPropagation();
+    
+    if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
+    
+    const span = currentTraceData.spans[spanIndex];
+    const jsonText = JSON.stringify(span, null, 2);
+    
+    navigator.clipboard.writeText(jsonText).then(() => {
+        const button = event.currentTarget;
+        const textSpan = button.querySelector('.btn-text');
+        const originalText = textSpan.textContent;
+        textSpan.textContent = 'Copied!';
+        
+        // Keep the "Copied!" message permanently (don't revert)
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function downloadSpanJSON(event, spanIndex) {
+    event.stopPropagation();
+    
+    if (!currentTraceData || !currentTraceData.spans[spanIndex]) return;
+    
+    const span = currentTraceData.spans[spanIndex];
+    const jsonText = JSON.stringify(span, null, 2);
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `span-${span.spanId || span.span_id || 'unknown'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const button = event.currentTarget;
+    const textSpan = button.querySelector('.btn-text');
+    textSpan.textContent = 'Downloaded!';
+    
+    // Keep the "Downloaded!" message permanently (don't revert)
+}
+
 
 async function loadLogs() {
     const traceIdFilter = document.getElementById('trace-id-filter').value.trim();
