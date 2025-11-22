@@ -465,7 +465,7 @@ function copyTraceJSON() {
         feedback.style.display = 'inline';
     }).catch(err => {
         console.error('Failed to copy:', err);
-        feedback.textContent = '✗ Copy failed';
+        feedback.textContent = 'Copy failed';
         feedback.style.color = 'var(--error)';
         feedback.style.display = 'inline';
     });
@@ -614,11 +614,9 @@ function showSpanJson(spanIndex) {
                 <div class="span-json-title">Span: ${span.name}</div>
                 <div class="span-json-actions">
                     <button class="span-json-btn" onclick="copySpanJSON(event, ${spanIndex})">
-                        <span class="btn-icon">📋</span>
                         <span class="btn-text">Copy</span>
                     </button>
                     <button class="span-json-btn" onclick="downloadSpanJSON(event, ${spanIndex})">
-                        <span class="btn-icon">💾</span>
                         <span class="btn-text">Download</span>
                     </button>
                     <button class="span-json-close" onclick="closeSpanJson()">Close</button>
@@ -739,12 +737,17 @@ async function loadLogs() {
                     </div>
                     <div class="log-message">${message}</div>
                     <div id="${logId}" class="json-view" style="display: ${isExpanded ? 'block' : 'none'};">
-                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <button onclick="event.stopPropagation(); copyLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
-                                📋 Copy
-                            </button>
-                            <button onclick="event.stopPropagation(); downloadLogJSON('${logId}', '${timestamp}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
-                                💾 Download
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="event.stopPropagation(); copyLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                    Copy
+                                </button>
+                                <button onclick="event.stopPropagation(); downloadLogJSON('${logId}', '${timestamp}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                    Download
+                                </button>
+                            </div>
+                            <button onclick="event.stopPropagation(); toggleLogJSON('${logId}', '${stableId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                Close
                             </button>
                         </div>
                         <pre>${JSON.stringify(log, null, 2)}</pre>
@@ -776,12 +779,12 @@ function copyLogJSON(logId) {
     const button = event.target;
     
     navigator.clipboard.writeText(jsonContent).then(() => {
-        button.textContent = '✓ Copied!';
+        button.textContent = 'Copied!';
         button.style.background = 'var(--success)';
         button.style.color = 'white';
     }).catch(err => {
         console.error('Failed to copy:', err);
-        button.textContent = '✗ Failed';
+        button.textContent = 'Failed';
         button.style.background = 'var(--error)';
         button.style.color = 'white';
     });
@@ -839,6 +842,11 @@ async function loadTraceLog(traceId) {
                     </div>
                     <div class="log-message">${message}</div>
                     <div id="${logId}" class="json-view" style="display: none;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px; justify-content: flex-end;">
+                            <button onclick="event.stopPropagation(); toggleLogJSON('${logId}')" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                                Close
+                            </button>
+                        </div>
                         <pre>${JSON.stringify(log, null, 2)}</pre>
                     </div>
                 </div>
