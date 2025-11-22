@@ -903,28 +903,23 @@ let metricSortColumn = 'name'; // 'name', 'type', or 'value'
 let metricSortDirection = 'asc'; // 'asc' or 'desc'
 
 async function loadMetrics() {
+    const container = document.getElementById('metrics-container');
     try {
         const response = await fetch('/api/metrics?limit=500');
         const data = await response.json();
-
         const metricNames = data.names || [];
         const cardinality = data.cardinality || {};
 
-        const container = document.getElementById('metrics-container');
-
-        // Show cardinality warning if needed
-        const cardinalityPercent = (cardinality.current / cardinality.max) * 100;
+        // Update cardinality warning if needed
         let warningHtml = '';
-
-        if (cardinalityPercent > 90) {
-            warningHtml = `<div style="padding: 10px; background: #ff4444; color: white; border-radius: 4px; margin-bottom: 10px;">
-                ⚠️ High cardinality: ${cardinality.current}/${cardinality.max} metrics (${cardinalityPercent.toFixed(0)}%)
-                ${cardinality.dropped_count > 0 ? ` - ${cardinality.dropped_count} metrics dropped` : ''}
-            </div>`;
-        } else if (cardinalityPercent > 70) {
-            warningHtml = `<div style="padding: 10px; background: #ff9800; color: white; border-radius: 4px; margin-bottom: 10px;">
-                ⚠️ Cardinality: ${cardinality.current}/${cardinality.max} metrics (${cardinalityPercent.toFixed(0)}%)
-            </div>`;
+        if (cardinality.dropped_count > 0) {
+            warningHtml = `
+                <div style="background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ffeeba;">
+                    <strong>Warning:</strong> High cardinality detected. 
+                    ${cardinality.dropped_count} metrics were dropped. 
+                    (Current: ${cardinality.current_count}/${cardinality.max_limit})
+                </div>
+            `;
         }
 
         if (metricNames.length === 0) {
@@ -933,33 +928,34 @@ async function loadMetrics() {
             return;
         }
 
-        // Show info about limited display
-        if (metricNames.length >= 500) {
-            warningHtml += `<div style="padding: 8px; background: #2196F3; color: white; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
-                ℹ️ Showing first 500 of ${cardinality.current} metrics
-            </div>`;
-        }
+        // Check if metric names have changed
+        const namesChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
 
-        // Fetch metric types and values for all metrics
-        for (const name of metricNames) {
-            await fetchMetricTypeAndValue(name);
-        }
-
-        // Check if metric list has changed
-        const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
-
-        if (metricsChanged) {
-            console.log('Metrics list changed, recreating table');
+        if (namesChanged || currentMetricNames.length === 0) {
             currentMetricNames = metricNames;
-        }
 
-        // Render table with sorting
-        renderMetricsTable(warningHtml, container);
+            // Fetch types and initial values for all metrics
+            for (const name of metricNames) {
+                if (!metricTypes[name]) {
+                    await fetchMetricTypeAndValue(name);
+                }
+            }
+
+            if (container) {
+                renderMetricsTable(warningHtml, container);
+            }
+        } else {
+            // Just update values for existing metrics
+            for (const name of metricNames) {
+                updateMetricRowData(name);
+            }
+        }
 
     } catch (error) {
         console.error('Error loading metrics:', error);
-        container.innerHTML = '<div class="empty">Error loading metrics</div>';
-        currentMetricNames = [];
+        if (container) {
+            container.innerHTML = '<div class="empty">Error loading metrics</div>';
+        }
     }
 }
 
