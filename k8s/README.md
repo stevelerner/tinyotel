@@ -4,116 +4,64 @@ This directory contains Kubernetes manifests and helper scripts for deploying Ti
 
 ## Quick Start
 
-### One-Command Deploy
-
-The easiest way to deploy TinyOlly:
+### 1. Start Minikube
 
 ```bash
-./deploy-and-test.sh
+minikube start
 ```
 
-This automated script will:
-1. Check prerequisites (kubectl, minikube)
-2. Build Docker images (for Minikube)
-3. Deploy all resources to Kubernetes
-4. Wait for deployments to be ready
-5. Run comprehensive diagnostics
-6. Help you set up access to the UI
+### 2. Build Images (Minikube Only)
 
-### Check Status
+Build Docker images in Minikube's environment:
 
-At any time, check the status of your deployment:
-
-```bash
-./status.sh
-```
-
-## Scripts Reference
-
-### `deploy-and-test.sh` ⭐ Recommended
-**Purpose:** Complete automated deployment with testing  
-**What it does:**
-- Validates prerequisites
-- Builds images (Minikube only)
-- Deploys all resources
-- Waits for readiness
-- Runs diagnostics
-- Sets up UI access
-
-**Usage:**
-```bash
-./deploy-and-test.sh
-```
-
-### `build-images.sh`
-**Purpose:** Build Docker images in Minikube  
-**What it does:**
-- Configures Docker to use Minikube's daemon
-- Builds `tinyolly-ui` image
-- Builds `tinyolly-otlp-receiver` image
-
-**Usage:**
 ```bash
 ./build-images.sh
 ```
 
-**Note:** Only needed for Minikube. For other clusters, build and push to your registry.
+**Note:** For other clusters, build and push to your registry.
 
-### `test-deployment.sh`
-**Purpose:** Comprehensive diagnostics and testing  
-**What it does:**
-- Checks all deployment statuses
-- Verifies pod health
-- Retrieves logs from failing pods
-- Shows events and errors
-- Provides troubleshooting suggestions
+### 3. Deploy TinyOlly Core
 
-**Usage:**
 ```bash
-./test-deployment.sh
+kubectl apply -f .
 ```
 
-**When to use:** 
-- After deployment to verify everything works
-- When pods are failing or crashing
-- To get detailed diagnostics
+This deploys:
+- **Redis**: Data storage
+- **OTel Collector**: Receives telemetry (ports 4317/4318)
+- **TinyOlly OTLP Receiver**: Parses OTLP and stores in Redis
+- **TinyOlly UI**: Web interface (port 5002)
 
-### `status.sh`
-**Purpose:** Quick status overview  
-**What it does:**
-- Shows deployment readiness
-- Lists pod status
-- Displays service information
-- Checks if minikube tunnel is running
+### 4. Access the UI
 
-**Usage:**
+Start minikube tunnel in a **separate terminal**:
+
 ```bash
-./status.sh
+minikube tunnel
 ```
 
-**When to use:**
-- Quick health check
-- Before shutting down
-- To get access URLs
+You may be asked for your password. Keep this terminal open.
 
-### `cleanup.sh`
-**Purpose:** Remove all TinyOlly resources  
-**What it does:**
-- Lists resources to be deleted
-- Asks for confirmation
-- Deletes all deployments, services, and configmaps
-- Waits for cleanup to complete
-- Optionally removes Docker images (Minikube)
+Now access the UI at: **http://localhost:5002**
 
-**Usage:**
+### 5. Deploy Demo Apps (Optional)
+
+To see TinyOlly in action with automatic traffic generation:
+
+```bash
+cd ../k8s-demo
+./deploy.sh
+```
+
+The demo apps will automatically generate traces, logs, and metrics!
+
+### 6. Cleanup
+
+Remove all TinyOlly resources:
+
 ```bash
 ./cleanup.sh
 ```
-
-**When to use:**
-- Before redeploying
-- When done with TinyOlly
-- To start fresh
 
 ## Kubernetes Resources
 
@@ -134,6 +82,16 @@ At any time, check the status of your deployment:
 ### ConfigMaps
 
 - **otel-collector-config**: Configuration for OpenTelemetry Collector
+
+## Using with Your Own App
+
+After deploying TinyOlly core, instrument your application to send telemetry:
+
+**Point your OpenTelemetry exporter to:**
+- **gRPC**: `otel-collector:4317`
+- **HTTP**: `otel-collector:4318`
+
+Deploy your app to the same namespace as TinyOlly. Your telemetry will appear in the TinyOlly UI at http://localhost:5002 (with minikube tunnel).
 
 ## Manual Deployment
 
@@ -181,13 +139,16 @@ kubectl get service tinyolly-ui
 
 ### 5. Verify Deployment
 
+Check pod and service status:
+
 ```bash
-./test-deployment.sh
+kubectl get pods
+kubectl get services
 ```
 
-## Troubleshooting
+All pods should show `Running` status.
 
-If you encounter issues, see the [Troubleshooting Guide](TROUBLESHOOTING.md).
+## Troubleshooting
 
 Common quick fixes:
 
@@ -241,70 +202,31 @@ kubectl port-forward service/tinyolly-ui 5002:5002
 ```
 k8s/
 ├── README.md                          # This file
-├── TROUBLESHOOTING.md                 # Detailed troubleshooting guide
-├── deploy-and-test.sh                 # Automated deployment + testing
-├── build-images.sh                    # Build Docker images
-├── test-deployment.sh                 # Run diagnostics
-├── status.sh                          # Quick status check
-├── cleanup.sh                         # Remove all resources
+├── build-images.sh                    # Build Docker images for Minikube
+├── cleanup.sh                         # Remove all TinyOlly resources
 ├── redis.yaml                         # Redis deployment + service
-├── otel-collector.yaml               # OTel Collector deployment + service
-├── otel-collector-config.yaml        # OTel Collector ConfigMap
-├── tinyolly-otlp-receiver.yaml       # Receiver deployment + service
-└── tinyolly-ui.yaml                  # UI deployment + service
+├── otel-collector.yaml                # OTel Collector deployment + service
+├── otel-collector-config.yaml         # OTel Collector ConfigMap
+├── tinyolly-otlp-receiver.yaml        # Receiver deployment + service
+└── tinyolly-ui.yaml                   # UI deployment + service
 ```
 
-## Workflow Examples
+## Architecture
 
-### First Time Setup
+The deployment creates these components:
 
-```bash
-minikube start
-./deploy-and-test.sh
-# Follow prompts to start minikube tunnel
-# Access UI at http://localhost:5002
-```
+1. **Redis** - Data storage with 30-minute TTL
+2. **OTel Collector** - Receives OTLP telemetry on ports 4317 (gRPC) and 4318 (HTTP)
+3. **TinyOlly OTLP Receiver** - Parses telemetry and stores in Redis with cardinality protection
+4. **TinyOlly UI** - Web interface for viewing traces, metrics, and logs (port 5002)
 
-### Daily Development Workflow
+## Features
 
-```bash
-# Check status
-./status.sh
+- **Distributed Tracing**: View complete request flows across services
+- **Metrics Dashboard**: Monitor request counts, durations, and custom metrics
+- **Log Aggregation**: Correlated logs with trace context
+- **Cardinality Protection**: Prevents metric explosion (configurable limit)
+- **Auto-Refresh UI**: Real-time updates every 5 seconds
+- **30-Minute TTL**: Automatic data cleanup in Redis
 
-# If changes made to code, rebuild and redeploy
-./build-images.sh
-kubectl rollout restart deployment/tinyolly-ui
-kubectl rollout restart deployment/tinyolly-otlp-receiver
-
-# Verify
-./test-deployment.sh
-```
-
-### Troubleshooting Issues
-
-```bash
-# Get detailed diagnostics
-./test-deployment.sh
-
-# Check specific logs
-kubectl logs deployment/tinyolly-ui --tail=100
-
-# Start fresh if needed
-./cleanup.sh
-./deploy-and-test.sh
-```
-
-### Cleanup
-
-```bash
-./cleanup.sh
-minikube stop  # If done with Minikube
-```
-
-## Additional Resources
-
-- [Main TinyOlly README](../README.md)
-- [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [Minikube Documentation](https://minikube.sigs.k8s.io/docs/)
-- [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
-
+For more details, see the [main README](../README.md).

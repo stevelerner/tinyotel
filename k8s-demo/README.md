@@ -8,10 +8,12 @@ The demo consists of two microservices:
 - **demo-frontend**: A Flask app that handles user requests and calls the backend
 - **demo-backend**: A Flask service that processes inventory, pricing, and payment operations
 
-Both services are instrumented with OpenTelemetry and automatically generate:
+Both services are instrumented with OpenTelemetry and **automatically generate traffic** to continuously produce:
 - **Distributed Traces**: See how requests flow between services
 - **Metrics**: Monitor request counts, order processing, and performance
 - **Logs**: Correlated logs with trace context
+
+No manual traffic generation needed - just deploy and watch!
 
 ## Prerequisites
 
@@ -40,7 +42,18 @@ This script will:
 - Deploy demo-frontend and demo-backend
 - Wait for pods to be ready
 
-### 2. Generate Traffic
+**Note:** The demo apps **automatically generate traffic** every 3-8 seconds. Traces, logs, and metrics will start appearing in the TinyOlly UI within 30 seconds!
+
+### 2. View in TinyOlly UI
+
+Open http://localhost:5002 to see:
+- Distributed traces showing the complete order flow
+- Metrics for requests, orders, and calculations
+- Logs correlated with traces
+
+### 3. Optional - Generate Additional Traffic
+
+If you want to create extra load for testing:
 
 ```bash
 ./generate-traffic.sh
@@ -53,13 +66,6 @@ This creates realistic traffic patterns:
 - 10% errors
 
 Press `Ctrl+C` to stop.
-
-### 3. View in TinyOlly UI
-
-Open http://localhost:5002 to see:
-- Distributed traces showing the complete order flow
-- Metrics for requests, orders, and calculations
-- Logs correlated with traces
 
 ### 4. Cleanup
 
@@ -127,19 +133,19 @@ Click on any trace in the UI to see associated logs!
 ## Architecture
 
 ```
-┌──────────────┐
-│ Traffic Gen  │
-└──────┬───────┘
-       │ HTTP
-       ▼
-┌──────────────────┐    HTTP     ┌──────────────────┐
-│  demo-frontend   │──────────▶  │  demo-backend    │
-│  (Port 5001)     │             │  (Port 5000)     │
-└────────┬─────────┘             └────────┬─────────┘
-         │                                 │
-         │ OTLP (gRPC)                    │ OTLP (gRPC)
-         │                                 │
-         ▼                                 ▼
+┌──────────────────────────────────────────────┐
+│  Auto-Traffic Generator (built-in)          │
+│  ↓                                            │
+│ ┌──────────────────┐    HTTP     ┌──────────────────┐
+│ │  demo-frontend   │──────────▶  │  demo-backend    │
+│ │  (Port 5001)     │             │  (Port 5000)     │
+│ └────────┬─────────┘             └────────┬─────────┘
+│          │                                 │
+└──────────┼─────────────────────────────────┼─────────┘
+           │                                 │
+           │ OTLP (gRPC)                    │ OTLP (gRPC)
+           │                                 │
+           ▼                                 ▼
     ┌────────────────────────────────────────┐
     │         OTel Collector                 │
     │           (Port 4317)                  │
@@ -289,11 +295,13 @@ Counters and histograms for:
 ## Next Steps
 
 1. Deploy the demo: `./deploy.sh`
-2. Generate traffic: `./generate-traffic.sh`
-3. Open TinyOlly UI: http://localhost:5002
+2. Watch automatic traffic appear in the TinyOlly UI: http://localhost:5002
+3. Optional - generate additional traffic: `./generate-traffic.sh`
 4. Explore traces, metrics, and logs!
-5. Try causing errors and watch them appear
+5. Try causing errors (visit `/error` endpoint) and watch them appear
 6. See how distributed traces connect services
+
+**Note:** Traffic is generated automatically by the demo apps every 3-8 seconds. No manual script needed!
 
 For more information, see the [main TinyOlly README](../README.md).
 

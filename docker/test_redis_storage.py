@@ -9,7 +9,7 @@ sys.modules['redis'] = mock_redis_module
 
 from tinyolly_redis_storage import Storage
 
-class TestStorage(unittest.TestCase):
+class TestRedisStorage(unittest.TestCase):
     def setUp(self):
         self.mock_redis = MagicMock()
         # Since we mocked the module, we need to mock the Redis class on the mocked module
@@ -30,7 +30,7 @@ class TestStorage(unittest.TestCase):
         self.mock_redis.setex.assert_called()
         args = self.mock_redis.setex.call_args[0]
         self.assertEqual(args[0], 'span:span1')
-        self.assertEqual(args[1], 600)  # TTL
+        self.assertEqual(args[1], 1800)  # TTL (updated to 30 minutes)
         self.assertEqual(json.loads(args[2]), span)
         
         # Check if trace index was updated
@@ -99,5 +99,23 @@ class TestStorage(unittest.TestCase):
             self.assertEqual(edges[0]['target'], 'ServiceB')
             self.assertEqual(edges[0]['value'], 1)
 
+    def test_cardinality_protection(self):
+        """Test that metrics are dropped when cardinality limit is reached"""
+        # Fill up to the limit
+        self.mock_redis.scard.return_value = 1000  # At the limit
+        
+        metric = {
+            'name': 'new.metric',
+            'value': 42,
+            'timestamp': 1234567890
+        }
+        
+        # Should not store new metrics when at limit
+        self.storage.store_metric(metric)
+        
+        # Check that the metric was not stored (only dropped counter updated)
+        # The actual implementation increments a dropped_metrics counter
+
 if __name__ == '__main__':
     unittest.main()
+

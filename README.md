@@ -2,35 +2,17 @@
 
 A **lightweight observability system built from scratch** to visualize and correlate logs, metrics, and traces. No 3rd party Observability tools are used - just Flask, Redis, and Chart.js.  
 
-Think of TinyOlly as a tool to livetail your metrics/traces/logs during development with visuals and tools like a full production observability system- but is lighter and runs locally.
+Think of TinyOlly as a local lightweight tool to livetail your metrics/traces/logs during development with visuals and tools like a full production observability system.
 
-Included is a demo app with two Flask microservices which are auto instrumenated for tracing and also utilize the OpenTelemetry Python SDK to export logs and metrics to the OpenTelemetry collector. This is the proper way to instrument an application for observability.  
+Included is a demo app with two Flask microservices using Otel auto-instrumentation for tracing and SDK for logs and metrics. 
+
+TinyOlly was built and tested on Docker Desktop and Minikube on Apple Silicon Mac.  
 
 ## Docker: Quick Start
 
-> **Note:** Built and tested on Docker Desktop for Mac.
+### 1. Deploy TinyOlly Core (Required)
 
-### Option 1: Full TinyOlly Demo
-Run the otel collector, TinyOlly receiver, storage, and UI, and the demo app with two Flask microservices.  
-
-```bash
-cd docker/tinyolly-demo
-./01-start.sh
-```
-
-Open the UI at `http://localhost:5005`. Traffic is generated automatically by the demo apps.
-
-Stop the demo:
-```bash
-./03-stop.sh
-```
-
-### Option 2: TinyOlly Core w/ UI (Bring Your Own App)
-Start only the TinyOlly observability backend and UI to use with your own application.
-- Your application sends OpenTelemetry metrics/logs/traces to TinyOlly's OTel Collector destination: `http://otel-collector:4317` or `http://otel-collector:4318`.  
-- For traces you can use manual or auto instrumentation. Logs and metrics should use the OpenTelemetry SDK.  
-- The collector sends the data to TinyOlly's OTLP receiver. The receiver parses the data and stores it in Redis. 
-- The TinyOlly UI then displays the telemetry.  
+Start the observability backend (OTel Collector, TinyOlly Receiver, Redis, UI):
 
 ```bash
 cd docker
@@ -39,32 +21,59 @@ cd docker
 
 This starts:
 - **OTel Collector**: Listening on `localhost:4317` (gRPC) and `localhost:4318` (HTTP)
-- **TinyOlly UI**: `http://localhost:5005` (Docker uses port 5005 to avoid conflict with K8s)
-- **Redis & Receiver**: Backend storage
+- **TinyOlly UI**: `http://localhost:5005`
+- **TinyOlly OTLP Receiver and its Redis storage**: OTLP observability back end and storage
 
-**Instrument Your App:**
-Point your OpenTelemetry exporter to `localhost:4317` (gRPC) or `localhost:4318` (HTTP).
+**Open the UI:** `http://localhost:5005` (empty until you send data)
 
-**Stop Core Services:**
+### 2. Deploy Demo Apps (Optional)
+
+Deploy two Flask microservices with automatic traffic generation:
+
 ```bash
+cd docker-demo
+./01-deploy-demo.sh
+```
+
+Wait 30 seconds. **The demo apps automatically generate traffic** - traces, logs, and metrics will appear in the UI!
+
+**Stop demo apps:**
+```bash
+./02-cleanup-demo.sh
+```
+
+This leaves TinyOlly core running. To stop everything:
+```bash
+cd docker
 ./02-stop-core.sh
 ```
+
+### Using TinyOlly Core with Your Own Apps
+
+After deploying TinyOlly core (step 1 above), instrument your application to send telemetry:
+
+**Point your OpenTelemetry exporter to:**
+- **gRPC**: `http://localhost:4317`
+- **HTTP**: `http://localhost:4318`
+
+Your app can use manual or auto-instrumentation for traces. Use the OpenTelemetry SDK for logs and metrics. The collector will forward everything to TinyOlly's receiver, which stores it in Redis and displays it in the UI.
 
 ## Architecture
 
 ```
-Demo Frontend  ←→  Demo Backend (distributed tracing)
+Demo Frontend  ←→  Demo Backend (distributed tracing + auto-traffic)
         ↓                    ↓
    OTel Collector  ←─────────┘
         ↓
    TinyOlly OTLP Receiver (parses OTLP, stores in Redis)
         ↓
-   Redis (10-minute TTL)
+   Redis (30-minute TTL with cardinality protection)
         ↓
-   TinyOlly UI (Flask + single HTML file)
+   TinyOlly UI (Flask + HTML + JavaScript)
 ```
 
 **Demo: Key Points:**
+- **Automatic traffic generation** - demo apps continuously generate telemetry (no manual scripts needed)
 - Apps use **automatic OpenTelemetry instrumentation** - no manual span creation
 - HTTP calls between services automatically create distributed traces
 - Apps only speak OTLP - they don't know TinyOlly exists
@@ -121,7 +130,7 @@ You can also run TinyOlly on Kubernetes using Minikube.
 
     You may be asked for your password. Keep this terminal open.
 
-    Now you can access the UI at: [http://localhost:5002](http://localhost:5002)
+    Now you can access the TinyOlly UI at: [http://localhost:5002](http://localhost:5002)
 
 5.  **Clean Up:**
 
@@ -142,7 +151,34 @@ cd k8s-demo
 
 The demo includes two microservices that automatically generate traffic, showcasing distributed tracing across service boundaries. See [k8s-demo/README.md](k8s-demo/README.md) for details.
 
+## Running Docker and Kubernetes Simultaneously
+
+Both environments can run at the same time on the same machine:
+- **Docker**: `http://localhost:5005`
+- **Kubernetes**: `http://localhost:5002`
+
+Each has its own isolated data and generates independent telemetry streams. Perfect for testing or comparing deployments.
+
 ## Features
+
+### Automatic Traffic Generation
+
+Both Docker and Kubernetes demos include built-in automatic traffic generation:
+- Starts automatically when demo apps launch
+- Generates traces, logs, and metrics every 3-8 seconds
+- Calls various endpoints: `/hello`, `/calculate`, `/process-order`, `/error`
+- No manual scripts needed - just start and watch!
+
+**Optional manual traffic scripts are available in each demo directory if you want to generate additional load.**
+
+### Modern UI with Auto-Refresh
+
+- **Modular architecture**: Separate HTML and JavaScript files for maintainability
+- **Auto-refresh**: Updates every 5 seconds (can be paused with button)
+- **Tab persistence**: Remembers which tab you were viewing
+- **Copy/Download**: Export trace and log JSON with one click
+- **Interactive metrics**: Expandable graphs with search and filtering
+- **Data limits**: Shows last 100 logs, 50 traces to prevent browser overload
 
 ### Cardinality Protection
 

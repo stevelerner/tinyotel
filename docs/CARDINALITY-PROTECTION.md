@@ -124,7 +124,7 @@ env:
 
 ### Docker Deployment
 
-Update `docker-compose.yml`:
+Update `docker-compose-tinyolly-core.yml` in the `docker/` directory:
 
 ```yaml
 environment:

@@ -120,11 +120,16 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 if [ "$USE_MINIKUBE" = true ]; then
-    echo -e "${CYAN}To access the demo app:${NC}"
+    echo -e "${CYAN}Access the demo:${NC}"
     echo -e "1. Make sure ${YELLOW}minikube tunnel${NC} is running"
-    echo -e "2. Access the frontend at: ${GREEN}http://localhost:5001${NC}"
+    echo -e "2. TinyOlly UI: ${GREEN}http://localhost:5002${NC}"
+    echo -e "3. Demo Frontend: ${GREEN}http://localhost:5001${NC}"
     echo ""
-    echo -e "${CYAN}Generate traffic:${NC}"
+    echo -e "${CYAN}Auto-Traffic:${NC}"
+    echo -e "The demo apps ${GREEN}automatically generate traffic${NC} every 3-8 seconds."
+    echo -e "Watch traces, logs, and metrics appear in the TinyOlly UI!"
+    echo ""
+    echo -e "${CYAN}Optional - Generate additional traffic:${NC}"
     echo -e "  ${YELLOW}./generate-traffic.sh${NC}"
 fi
 
