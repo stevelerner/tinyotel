@@ -1,5 +1,5 @@
 import { loadLogs, loadSpans, loadTraces, loadMetrics, loadServiceMap } from './api.js';
-import { showTracesList } from './render.js';
+import { showTracesList, isSpanDetailOpen } from './render.js';
 
 let currentTab = 'traces';
 let autoRefreshInterval = null;
@@ -49,6 +49,12 @@ export function startAutoRefresh() {
     console.log('Auto-refresh started');
 
     autoRefreshInterval = setInterval(() => {
+        // Don't refresh if a span detail is open
+        if (currentTab === 'spans' && isSpanDetailOpen()) {
+            console.log('Skipping refresh - span detail is open');
+            return;
+        }
+        
         // We need to import loadStats here or pass it, but circular deps might be an issue
         // For now let's assume api.js exports it and we can import it
         // Actually, let's just refresh the current tab

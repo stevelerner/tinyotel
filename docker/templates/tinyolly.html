@@ -1018,17 +1018,21 @@
                 <button class="view-json-button" onclick="toggleTraceJSON()">View Trace JSON</button>
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
                 <div id="trace-json-view" class="json-view" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
                         <button onclick="event.stopPropagation(); copyTraceJSON()"
-                            style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            style="padding: 6px 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px; font-size: 12px;">
                             Copy JSON
                         </button>
                         <button onclick="event.stopPropagation(); downloadTraceJSON()"
-                            style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                            style="padding: 6px 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px; font-size: 12px;">
                             Download JSON
                         </button>
+                        <button onclick="event.stopPropagation(); toggleTraceJSON()"
+                            style="padding: 6px 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px; font-size: 12px;">
+                            Close
+                        </button>
                         <span id="copy-trace-feedback"
-                            style="color: var(--success); font-size: 14px; display: none;">Copied!</span>
+                            style="color: var(--success); font-size: 12px; display: none; margin-left: 8px;">Copied!</span>
                     </div>
                     <pre id="trace-json-content"></pre>
                 </div>
