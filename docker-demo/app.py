@@ -6,17 +6,27 @@ Includes automatic traffic generation for continuous telemetry
 import random
 import time
 import logging
+import json
 import requests
 import threading
 import os
 from flask import Flask, jsonify
 
-# Configure standard Python logging - OpenTelemetry will capture these
+# Configure structured JSON logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(message)s'  # Just the message, structured logging will handle the rest
 )
 logger = logging.getLogger(__name__)
+
+# Helper for structured logging
+def log_json(level, message, **kwargs):
+    """Log a structured JSON message"""
+    log_data = {
+        'message': message,
+        **kwargs
+    }
+    getattr(logger, level)(json.dumps(log_data))
 
 app = Flask(__name__)
 
@@ -119,17 +129,21 @@ def process_order():
     item_count = random.randint(1, 5)
     base_price = random.uniform(10.0, 100.0) * item_count
     
-    logger.info(f"Processing order {order_id} for customer {customer_id} with {item_count} items")
+    log_json('info', "Processing order", 
+             order_id=order_id, 
+             customer_id=customer_id, 
+             item_count=item_count,
+             operation="order_start")
     
     # Step 1: Validate request (local work)
-    logger.info(f"Validating order {order_id}")
+    log_json('info', "Validating order", order_id=order_id, step="validation")
     time.sleep(random.uniform(0.02, 0.05))
-    logger.info("Order validation successful")
+    log_json('info', "Order validation successful", order_id=order_id, step="validation")
     
     try:
         # Step 2: Check inventory via backend service
         # OpenTelemetry auto-instrumentation automatically creates distributed trace!
-        logger.info(f"Checking inventory for {item_count} items")
+        log_json('info', "Checking inventory", item_count=item_count, step="inventory_check")
         inventory_response = requests.post(
             f"{BACKEND_URL}/check-inventory",
             json={"items": item_count},
@@ -139,17 +153,23 @@ def process_order():
         in_stock = inventory_data.get('available', True)
         
         if not in_stock:
-            logger.warning("Items not available")
+            log_json('warning', "Items not available", 
+                    item_count=item_count, 
+                    reason="out_of_stock")
             return jsonify({
                 "status": "failed",
                 "order_id": order_id,
                 "message": "Items out of stock"
             }), 409
         
-        logger.info("Inventory check complete - items available")
+        log_json('info', "Inventory check complete", 
+                item_count=item_count, 
+                status="available")
         
         # Step 3: Calculate pricing via backend service
-        logger.info("Calculating order pricing")
+        log_json('info', "Calculating order pricing", 
+                item_count=item_count, 
+                base_price=round(base_price, 2))
         pricing_response = requests.post(
             f"{BACKEND_URL}/calculate-price",
             json={"items": item_count, "base_price": base_price},
@@ -158,15 +178,22 @@ def process_order():
         pricing_data = pricing_response.json()
         total_price = pricing_data.get('total', 0)
         
-        logger.info(f"Pricing calculation complete: ${total_price:.2f}")
+        log_json('info', "Pricing calculation complete", 
+                total_price=round(total_price, 2), 
+                step="pricing")
         
         # Step 4: Reserve inventory (local work)
-        logger.info(f"Reserving {item_count} items")
+        log_json('info', "Reserving inventory", 
+                item_count=item_count, 
+                step="reservation")
         time.sleep(random.uniform(0.06, 0.1))
-        logger.info("Inventory reserved")
+        log_json('info', "Inventory reserved", 
+                item_count=item_count)
         
         # Step 5: Process payment via backend service
-        logger.info(f"Processing payment of ${total_price:.2f}")
+        log_json('info', "Processing payment", 
+                amount=round(total_price, 2), 
+                step="payment")
         payment_response = requests.post(
             f"{BACKEND_URL}/process-payment",
             json={"amount": total_price},

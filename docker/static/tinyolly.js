@@ -716,6 +716,8 @@ async function loadLogs() {
             const timestamp = new Date(log.timestamp * 1000).toISOString();
             const severity = log.severity || 'INFO';
             const traceId = log.trace_id || log.traceId || '';
+            const spanId = log.span_id || log.spanId || '';
+            const serviceName = log.service_name || '';
             const message = log.message || '';
 
             // Check if this log's JSON should be expanded
@@ -723,13 +725,16 @@ async function loadLogs() {
 
             // Remove leading zeros but keep at least one digit
             const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
+            const displaySpanId = spanId ? spanId.replace(/^0+(?=.)/, '') : '';
 
             return `
                 <div class="log-item">
                     <div>
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-severity ${severity}">${severity}</span>
+                        ${serviceName ? `<span class="log-service">${serviceName}</span>` : ''}
                         ${traceId ? `<span class="log-trace-link" onclick="showTraceFromLog('${traceId}')">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
+                        ${spanId ? `<span class="log-span-id">span: ${displaySpanId}</span>` : ''}
                         <span class="log-json-toggle" onclick="toggleLogJSON('${logId}', '${stableId}')">view log json</span>
                     </div>
                     <div class="log-message">${message}</div>
@@ -815,16 +820,21 @@ async function loadTraceLog(traceId) {
             const severity = log.severity || 'INFO';
             const message = log.message || '';
             const traceId = log.trace_id || log.traceId || '';
+            const spanId = log.span_id || log.spanId || '';
+            const serviceName = log.service_name || '';
 
             // Remove leading zeros but keep at least one digit
             const displayTraceId = traceId ? traceId.replace(/^0+(?=.)/, '') : '';
+            const displaySpanId = spanId ? spanId.replace(/^0+(?=.)/, '') : '';
 
             return `
                 <div class="log-item">
                     <div>
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-severity ${severity}">${severity}</span>
+                        ${serviceName ? `<span class="log-service">${serviceName}</span>` : ''}
                         ${traceId ? `<span class="log-trace-link" style="cursor: default; pointer-events: none;">trace: <span class="log-trace-id">${displayTraceId}</span></span>` : ''}
+                        ${spanId ? `<span class="log-span-id">span: ${displaySpanId}</span>` : ''}
                         <span class="log-json-toggle" onclick="toggleLogJSON('${logId}')">view log json</span>
                     </div>
                     <div class="log-message">${message}</div>

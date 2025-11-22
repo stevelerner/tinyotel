@@ -58,6 +58,20 @@ def store_log(log_data):
     """Store log data in Redis (compatible with TinyOlly frontend)"""
     try:
         for resource_log in log_data.get('resourceLogs', []):
+            # Extract resource attributes (like service.name)
+            resource_attrs = {}
+            for attr in resource_log.get('resource', {}).get('attributes', []):
+                key = attr.get('key', '')
+                value = attr.get('value', {})
+                if 'stringValue' in value:
+                    resource_attrs[key] = value['stringValue']
+                elif 'intValue' in value:
+                    resource_attrs[key] = value['intValue']
+                elif 'boolValue' in value:
+                    resource_attrs[key] = value['boolValue']
+            
+            service_name = resource_attrs.get('service.name', 'unknown')
+            
             for scope_log in resource_log.get('scopeLogs', []):
                 for log_record in scope_log.get('logRecords', []):
                     # Convert nanoseconds to seconds
@@ -69,14 +83,40 @@ def store_log(log_data):
                     
                     # Extract message from body
                     body = log_record.get('body', {})
-                    message = body.get('stringValue', str(body))
+                    raw_message = body.get('stringValue', str(body))
+                    
+                    # Try to parse JSON message
+                    parsed_message = None
+                    message_text = raw_message
+                    try:
+                        parsed_message = json.loads(raw_message)
+                        message_text = parsed_message.get('message', raw_message)
+                    except (json.JSONDecodeError, AttributeError):
+                        # Not JSON, use as-is
+                        pass
                     
                     # Extract severity
                     severity_number = log_record.get('severityNumber', 0)
                     severity_text = log_record.get('severityText', 'INFO')
                     
+                    # Parse attributes into proper fields
+                    parsed_attrs = {}
+                    for attr in log_record.get('attributes', []):
+                        key = attr.get('key', '')
+                        value = attr.get('value', {})
+                        
+                        # Extract value based on type
+                        if 'stringValue' in value:
+                            parsed_attrs[key] = value['stringValue']
+                        elif 'intValue' in value:
+                            parsed_attrs[key] = value['intValue']
+                        elif 'boolValue' in value:
+                            parsed_attrs[key] = value['boolValue']
+                        elif 'doubleValue' in value:
+                            parsed_attrs[key] = value['doubleValue']
+                    
                     # Generate unique log ID
-                    log_id = f"{int(timestamp * 1000)}-{hash(message) & 0xFFFFFF}"
+                    log_id = f"{int(timestamp * 1000)}-{hash(message_text) & 0xFFFFFF}"
                     
                     log_entry = {
                         'log_id': log_id,
@@ -84,15 +124,24 @@ def store_log(log_data):
                         'traceId': trace_id,
                         'spanId': span_id,
                         'severity': severity_text,
-                        'message': message,
-                        'attributes': log_record.get('attributes', [])
+                        'message': message_text,
+                        'service_name': service_name,
+                        'attributes': parsed_attrs  # Parsed OTLP attributes
                     }
+                    
+                    # If the log message itself was JSON, merge those fields in
+                    if parsed_message and isinstance(parsed_message, dict):
+                        for key, value in parsed_message.items():
+                            if key != 'message':  # Don't overwrite the message field
+                                log_entry[key] = value
                     
                     # Use storage module
                     storage.store_log(log_entry)
                     
     except Exception as e:
         print(f"Error storing log: {e}")
+        import traceback
+        traceback.print_exc()
 
 def store_metric(metric_data):
     """Store metric data in Redis (compatible with TinyOlly frontend)"""

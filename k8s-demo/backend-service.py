@@ -5,14 +5,24 @@ Uses OpenTelemetry auto-instrumentation for traces, metrics, and logs
 import random
 import time
 import logging
+import json
 from flask import Flask, jsonify, request
 
-# Configure standard Python logging - OpenTelemetry will capture these
+# Configure structured JSON logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(message)s'  # Just the message, structured logging will handle the rest
 )
 logger = logging.getLogger(__name__)
+
+# Helper for structured logging
+def log_json(level, message, **kwargs):
+    """Log a structured JSON message"""
+    log_data = {
+        'message': message,
+        **kwargs
+    }
+    getattr(logger, level)(json.dumps(log_data))
 
 app = Flask(__name__)
 

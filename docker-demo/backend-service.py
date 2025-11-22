@@ -5,14 +5,24 @@ Uses OpenTelemetry auto-instrumentation for traces, metrics, and logs
 import random
 import time
 import logging
+import json
 from flask import Flask, jsonify, request
 
-# Configure standard Python logging - OpenTelemetry will capture these
+# Configure structured JSON logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(message)s'  # Just the message, structured logging will handle the rest
 )
 logger = logging.getLogger(__name__)
+
+# Helper for structured logging
+def log_json(level, message, **kwargs):
+    """Log a structured JSON message"""
+    log_data = {
+        'message': message,
+        **kwargs
+    }
+    getattr(logger, level)(json.dumps(log_data))
 
 app = Flask(__name__)
 
@@ -22,7 +32,9 @@ def check_inventory():
     data = request.get_json()
     item_count = data.get('items', 1)
     
-    logger.info(f"Checking inventory for {item_count} items")
+    log_json('info', "Checking inventory", 
+             item_count=item_count, 
+             operation="inventory_check")
     
     # Simulate database query
     time.sleep(random.uniform(0.05, 0.12))
@@ -30,10 +42,15 @@ def check_inventory():
     in_stock = random.choice([True, True, True, False])  # 75% success
     
     if not in_stock:
-        logger.warning("Items out of stock, checking alternatives")
+        log_json('warning', "Items out of stock", 
+                item_count=item_count, 
+                status="checking_alternatives")
         time.sleep(random.uniform(0.03, 0.08))
     
-    logger.info(f"Inventory check complete: {'available' if in_stock else 'out of stock'}")
+    log_json('info', "Inventory check complete", 
+             item_count=item_count, 
+             available=in_stock,
+             status="available" if in_stock else "out_of_stock")
     
     return jsonify({
         "available": in_stock,
@@ -47,7 +64,10 @@ def calculate_price():
     item_count = data.get('items', 1)
     base_price = data.get('base_price', 50.0)
     
-    logger.info(f"Calculating price for {item_count} items at ${base_price:.2f} base")
+    log_json('info', "Calculating price", 
+             item_count=item_count, 
+             base_price=round(base_price, 2),
+             operation="price_calculation")
     
     # Fetch pricing rules
     time.sleep(random.uniform(0.02, 0.05))
