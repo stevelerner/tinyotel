@@ -55,14 +55,24 @@ export function startAutoRefresh() {
             return;
         }
         
-        // We need to import loadStats here or pass it, but circular deps might be an issue
-        // For now let's assume api.js exports it and we can import it
-        // Actually, let's just refresh the current tab
-        if (currentTab === 'metrics') loadMetrics();
-        else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) loadTraces();
-        else if (currentTab === 'spans') loadSpans();
-        else if (currentTab === 'logs') loadLogs();
-        else if (currentTab === 'map') loadServiceMap();
+        // Don't refresh metrics if a chart is open
+        if (currentTab === 'metrics') {
+            import('./metrics.js').then(module => {
+                if (module.isMetricChartOpen && module.isMetricChartOpen()) {
+                    console.log('Skipping refresh - metric chart is open');
+                } else {
+                    loadMetrics();
+                }
+            });
+        } else if (currentTab === 'traces' && !document.getElementById('trace-detail-view').style.display.includes('block')) {
+            loadTraces();
+        } else if (currentTab === 'spans') {
+            loadSpans();
+        } else if (currentTab === 'logs') {
+            loadLogs();
+        } else if (currentTab === 'map') {
+            loadServiceMap();
+        }
 
         // Also refresh stats
         import('./api.js').then(module => module.loadStats());
