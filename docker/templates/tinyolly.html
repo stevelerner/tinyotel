@@ -920,8 +920,13 @@
         }
 
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .loading {
@@ -982,18 +987,15 @@
     <div class="container">
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" data-tab="logs" onclick="switchTab('logs', this)">Logs</button>
-            <button class="tab" data-tab="metrics" onclick="switchTab('metrics', this)">Metrics</button>
-            <button class="tab" data-tab="traces" onclick="switchTab('traces', this)">Traces</button>
-            <button class="tab" data-tab="map" onclick="switchTab('map', this)">Service Map</button>
+            <button class="tab active" onclick="switchTab('logs', this)" data-tab="logs">Logs</button>
+            <button class="tab" onclick="switchTab('traces', this)" data-tab="traces">Traces</button>
+            <button class="tab" onclick="switchTab('spans', this)" data-tab="spans">Spans</button>
+            <button class="tab" onclick="switchTab('metrics', this)" data-tab="metrics">Metrics</button>
+            <button class="tab" onclick="switchTab('map', this)" data-tab="map">Service Map</button>
         </div>
 
         <!-- Logs Tab -->
-        <div id="logs-tab" class="tab-content active">
-            <div class="tab-stat">
-                <span class="tab-stat-label">Total Logs:</span>
-                <span class="tab-stat-value" id="stat-logs">-</span>
-            </div>
+        <div id="logs-content" class="tab-content active">
             <div class="logs-controls">
                 <input type="text" id="trace-id-filter" placeholder="Filter by trace ID (optional)">
                 <button onclick="loadLogs()">Filter</button>
@@ -1004,29 +1006,9 @@
             </div>
         </div>
 
-        <!-- Metrics Tab -->
-        <div id="metrics-tab" class="tab-content">
-            <div class="tab-stat">
-                <span class="tab-stat-label">Total Metrics:</span>
-                <span class="tab-stat-value" id="stat-metrics">-</span>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <input type="text" id="metric-search" placeholder="Search metrics..." 
-                       onkeyup="filterMetrics()" 
-                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
-            </div>
-            <div class="metric-table" id="metrics-container">
-                <div class="loading">Loading metrics...</div>
-            </div>
-        </div>
-
         <!-- Traces Tab -->
-        <div id="traces-tab" class="tab-content">
+        <div id="traces-content" class="tab-content">
             <div id="traces-list-view">
-                <div class="tab-stat">
-                    <span class="tab-stat-label">Total Traces:</span>
-                    <span class="tab-stat-value" id="stat-traces">-</span>
-                </div>
                 <div class="trace-list" id="traces-container">
                     <div class="loading">Loading traces...</div>
                 </div>
@@ -1037,13 +1019,16 @@
                 <button class="view-json-button" onclick="showLogsForTrace()">View Logs</button>
                 <div id="trace-json-view" class="json-view" style="display: none;">
                     <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
-                        <button onclick="event.stopPropagation(); copyTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                        <button onclick="event.stopPropagation(); copyTraceJSON()"
+                            style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                             Copy JSON
                         </button>
-                        <button onclick="event.stopPropagation(); downloadTraceJSON()" style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
+                        <button onclick="event.stopPropagation(); downloadTraceJSON()"
+                            style="padding: 5px 10px; cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); border-radius: 4px;">
                             Download JSON
                         </button>
-                        <span id="copy-trace-feedback" style="color: var(--success); font-size: 14px; display: none;">Copied!</span>
+                        <span id="copy-trace-feedback"
+                            style="color: var(--success); font-size: 14px; display: none;">Copied!</span>
                     </div>
                     <pre id="trace-json-content"></pre>
                 </div>
@@ -1053,12 +1038,27 @@
             </div>
         </div>
 
-        <!-- Service Map Tab -->
-        <div id="map-tab" class="tab-content">
-            <div class="tab-stat">
-                <span class="tab-stat-label">Service Dependencies:</span>
-                <span class="tab-stat-value" id="stat-dependencies">-</span>
+        <!-- Spans Tab -->
+        <div id="spans-content" class="tab-content">
+            <div class="span-list" id="spans-container">
+                <div class="loading">Loading spans...</div>
             </div>
+            <div id="span-detail-container" style="display: none; margin-top: 20px;"></div>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="metrics-content" class="tab-content">
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="metric-search" placeholder="Search metrics..." onkeyup="filterMetrics()"
+                    style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
+            </div>
+            <div class="metric-table" id="metrics-container">
+                <div class="loading">Loading metrics...</div>
+            </div>
+        </div>
+
+        <!-- Service Map Tab -->
+        <div id="map-content" class="tab-content">
             <div class="map-container"
                 style="background: #fff; border: 1px solid #ddd; border-radius: 4px; height: 600px; position: relative; overflow: hidden;">
                 <canvas id="service-map-canvas"></canvas>
@@ -1072,7 +1072,7 @@
         <span id="refresh-icon">⏸</span>
     </button>
 
-    <script src="/static/tinyolly.js"></script>
+    <script type="module" src="/static/tinyolly.js"></script>
 </body>
 
 </html>

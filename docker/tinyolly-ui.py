@@ -107,6 +107,22 @@ def get_trace(trace_id):
         'span_count': len(spans)
     })
 
+@app.route('/api/spans', methods=['GET'])
+def get_spans():
+    """Get list of recent spans"""
+    limit = int(request.args.get('limit', 100))
+    
+    # Get recent span IDs from index
+    span_ids = storage.get_recent_spans(limit)
+    
+    spans = []
+    for span_id in span_ids:
+        span_data = storage.get_span_details(span_id)
+        if span_data:
+            spans.append(span_data)
+    
+    return jsonify(spans)
+
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
     """Get recent logs, optionally filtered by trace_id"""

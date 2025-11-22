@@ -64,10 +64,76 @@ class Storage:
         # But for safety, we might want to sort on retrieval
         self.client.rpush(trace_span_key, json.dumps(span))
         self.client.expire(trace_span_key, self.ttl)
+        
+        # Add to span index (sorted by time)
+        self.client.zadd('span_index', {span_id: time.time()})
+        self.client.expire('span_index', self.ttl)
 
     def get_recent_traces(self, limit=100):
         """Get recent trace IDs"""
         return self.client.zrevrange('trace_index', 0, limit - 1)
+
+    def get_recent_spans(self, limit=100):
+        """Get recent span IDs"""
+        return self.client.zrevrange('span_index', 0, limit - 1)
+
+    def get_span_details(self, span_id):
+        """Get details for a specific span"""
+        span_key = f"span:{span_id}"
+        span_json = self.client.get(span_key)
+        
+        if not span_json:
+            return None
+            
+        span = json.loads(span_json)
+        
+        # Extract attributes for display
+        def get_attr(obj, keys):
+            # Handle OTLP list of dicts format
+            if isinstance(obj.get('attributes'), list):
+                for attr in obj['attributes']:
+                    if attr['key'] in keys:
+                        val = attr['value']
+                        # Return the first non-null value found
+                        for k in ['stringValue', 'intValue', 'boolValue', 'doubleValue']:
+                            if k in val:
+                                return val[k]
+            # Handle dict format (if normalized)
+            elif isinstance(obj.get('attributes'), dict):
+                for k in keys:
+                    if k in obj['attributes']:
+                        return obj['attributes'][k]
+            return None
+
+        method = get_attr(span, ['http.method', 'http.request.method'])
+        route = get_attr(span, ['http.route', 'http.target', 'url.path'])
+        status_code = get_attr(span, ['http.status_code', 'http.response.status_code'])
+        server_name = get_attr(span, ['http.server_name', 'net.host.name'])
+        scheme = get_attr(span, ['http.scheme', 'url.scheme'])
+        host = get_attr(span, ['http.host', 'net.host.name'])
+        target = get_attr(span, ['http.target', 'url.path'])
+        url = get_attr(span, ['http.url', 'url.full'])
+        
+        start_time = int(span.get('startTimeUnixNano', span.get('start_time', 0)))
+        end_time = int(span.get('endTimeUnixNano', span.get('end_time', 0)))
+        duration_ns = end_time - start_time if end_time > start_time else 0
+
+        return {
+            'span_id': span_id,
+            'trace_id': span.get('traceId') or span.get('trace_id'),
+            'name': span.get('name', 'unknown'),
+            'start_time': start_time,
+            'duration_ms': duration_ns / 1_000_000,
+            'method': method,
+            'route': route,
+            'status_code': status_code,
+            'status': span.get('status', {}),
+            'server_name': server_name,
+            'scheme': scheme,
+            'host': host,
+            'target': target,
+            'url': url
+        }
 
     def get_trace_spans(self, trace_id):
         """Get all spans for a trace"""
@@ -306,6 +372,7 @@ class Storage:
         cardinality = self.get_cardinality_stats()
         return {
             'traces': self.client.zcard('trace_index'),
+            'spans': self.client.zcard('span_index'),
             'logs': self.client.zcard('log_index'),
             'metrics': cardinality['current'],
             'metrics_max': cardinality['max'],
