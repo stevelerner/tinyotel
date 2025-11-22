@@ -46,10 +46,10 @@ export function renderLogs(logs, containerId = 'logs-container') {
                 <div style="flex: 0 0 60px; font-weight: 600; font-size: 10px; color: var(--text-main);">${severity}</div>
                 <div style="flex: 0 0 120px; color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${log.service_name || ''}">${log.service_name || '-'}</div>
                 <div style="flex: 0 0 180px; font-family: 'JetBrains Mono', monospace; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${traceId || ''}">
-                    ${traceId ? `<a class="log-trace-link" data-trace-id="${traceId}" style="color: var(--primary); cursor: pointer; text-decoration: none;">${formatTraceId(traceId)}</a>` : '<span style="color: var(--text-muted);">-</span>'}
+                    ${traceId ? `<a class="log-trace-link" data-trace-id="${traceId}" style="color: var(--primary); cursor: pointer; text-decoration: none; font-family: 'JetBrains Mono', monospace;">${formatTraceId(traceId)}</a>` : '<span style="color: var(--text-muted);">-</span>'}
                 </div>
                 <div style="flex: 0 0 140px; font-family: 'JetBrains Mono', monospace; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${spanId || ''}">
-                    ${spanId ? `<a class="log-span-link" data-span-id="${spanId}" style="color: var(--primary); cursor: pointer; text-decoration: none;">${formatTraceId(spanId)}</a>` : '<span style="color: var(--text-muted);">-</span>'}
+                    ${spanId ? `<a class="log-span-link" data-span-id="${spanId}" style="color: var(--primary); cursor: pointer; text-decoration: none; font-family: 'JetBrains Mono', monospace;">${formatTraceId(spanId)}</a>` : '<span style="color: var(--text-muted);">-</span>'}
                 </div>
                 <div style="flex: 1; min-width: 200px; color: var(--text-main); word-break: break-word;">${log.message || ''}</div>
             </div>
