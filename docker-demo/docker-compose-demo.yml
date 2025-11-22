@@ -26,5 +26,5 @@ services:
 networks:
   tinyolly-network:
     external: true
-    name: tinyolly_tinyolly-network
+    name: tinyolly-network
 
