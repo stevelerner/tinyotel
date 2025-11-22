@@ -159,7 +159,13 @@ def store_metric(metric_data):
                         metric_type = None
                         if 'sum' in metric:
                             data_points = metric['sum'].get('dataPoints', [])
-                            metric_type = 'counter'
+                            # Check if sum is monotonic (counter) or non-monotonic (gauge)
+                            # In OTLP, aggregationTemporality and isMonotonic determine this
+                            is_monotonic = metric['sum'].get('isMonotonic', False)
+                            if is_monotonic:
+                                metric_type = 'counter'
+                            else:
+                                metric_type = 'gauge'
                         elif 'gauge' in metric:
                             data_points = metric['gauge'].get('dataPoints', [])
                             metric_type = 'gauge'

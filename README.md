@@ -189,6 +189,33 @@ Both Docker and Kubernetes demos include built-in automatic traffic generation:
 - **Interactive metrics**: Expandable graphs with search and filtering
 - **Data limits**: Shows last 100 logs, 50 traces to prevent browser overload
 
+### Metric Visualization Types
+
+TinyOlly uses **type-specific visualizations** for OpenTelemetry metrics:
+
+#### **Gauges** → Semi-Circular Meter
+- **What it shows**: Current instantaneous value with capacity indicator
+- **Best for**: `active_requests`, `current_connections`, `memory_usage`, `queue_size`
+- **Visualization**: Doughnut chart (180°) with current value displayed prominently
+- **Example**: `http.server.active_requests` shows current concurrent requests
+
+#### **Counters** → Rate Bar Chart
+- **What it shows**: Rate of change between measurement intervals
+- **Best for**: `requests.total`, `errors.total`, `bytes.sent`, cumulative counts
+- **Why**: OTLP counters are cumulative - displaying raw values creates sawtooth patterns
+- **Visualization**: Bar chart showing deltas (change per interval)
+- **Handles**: Counter resets when application restarts
+- **Example**: `frontend.requests.total` shows request rate over time
+
+#### **Histograms** → Bucket Distribution
+- **What it shows**: Distribution of values across predefined buckets
+- **Best for**: `http.server.duration`, `response.time`, latency measurements
+- **Visualization**: Bar chart of request counts per latency bucket
+- **Display**: Latest snapshot showing "X req, avg: Y ms" in list view
+- **Example**: `http.server.duration` shows how many requests fall into each latency range (0-10ms, 10-50ms, etc.)
+
+**Note**: Metric types are automatically detected from OTLP data. The UI displays the appropriate visualization based on the metric's semantic type.
+
 ### Cardinality Protection
 
 TinyOlly includes built-in protection against metric cardinality explosion:
@@ -207,3 +234,52 @@ docker run -e MAX_METRIC_CARDINALITY=2000 ...
 ```
 
 See [docs/CARDINALITY-PROTECTION.md](docs/CARDINALITY-PROTECTION.md) for detailed documentation.
+
+## Technical Details
+
+### Frontend Architecture
+
+The UI is built with a modular JavaScript architecture for maintainability:
+
+```
+static/
+├── tinyolly.js       # Entry point, initializes app
+├── api.js            # Backend API calls
+├── tabs.js           # Tab switching and auto-refresh
+├── theme.js          # Dark/light mode
+├── utils.js          # Shared utilities
+├── render.js         # Re-exports from specialized modules
+├── traces.js         # Trace rendering and waterfall visualization
+├── spans.js          # Span list and detail rendering
+├── logs.js           # Log table with clickable trace/span links
+├── metrics.js        # Metric visualization (gauge/counter/histogram)
+└── serviceMap.js     # Service dependency graph
+```
+
+**Key Benefits:**
+- Each module has a single responsibility (~100-300 lines)
+- Easy to debug and extend
+- Fast reload times
+- Clear separation of concerns
+
+### Data Storage
+
+- **Redis**: All telemetry stored with 30-minute TTL
+- **Sorted Sets**: Time-series data indexed by timestamp
+- **Cardinality Protection**: Prevents metric explosion
+- **No Persistence**: Data vanishes after TTL (ephemeral dev tool)
+
+### OTLP Compatibility
+
+TinyOlly speaks standard OpenTelemetry Protocol (OTLP):
+- Accepts OTLP/HTTP and OTLP/gRPC
+- Parses OTLP JSON format
+- Extracts metrics, traces, and logs
+- No proprietary formats or SDKs required
+
+### Browser Compatibility
+
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- Requires JavaScript enabled
+- Uses native ES6 modules
+- Chart.js for visualizations

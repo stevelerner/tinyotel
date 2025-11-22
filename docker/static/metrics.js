@@ -32,24 +32,35 @@ export async function renderMetrics(metricsData) {
             if (data.data && data.data.length > 0) {
                 const point = data.data[data.data.length - 1];
                 
+                console.log(`Metric: ${name}, point.type="${point.type}", point.histogram=${point.histogram !== undefined}, point.value=${point.value}`);
+                
                 // Determine metric type - prioritize the 'type' field from OTLP receiver
                 if (point.type) {
                     // Normalize type to title case
                     metricType = point.type.charAt(0).toUpperCase() + point.type.slice(1);
+                    console.log(`  → Using point.type: ${metricType}`);
                 } else if (point.histogram !== undefined) {
                     metricType = 'Histogram';
+                    console.log(`  → Detected histogram from data structure`);
                 } else {
                     // Fallback to name-based heuristics
-                    if (name.includes('.active') || name.includes('_active') || 
-                        name.includes('.current') || name.includes('_current')) {
+                    const hasActive = name.includes('.active') || name.includes('_active');
+                    const hasCurrent = name.includes('.current') || name.includes('_current');
+                    const hasTotal = name.includes('.total') || name.includes('_total');
+                    const hasCount = name.includes('.count') || name.includes('_count');
+                    
+                    console.log(`  → Name heuristics: .active=${hasActive}, .current=${hasCurrent}, .total=${hasTotal}, .count=${hasCount}`);
+                    
+                    if (hasActive || hasCurrent) {
                         metricType = 'Gauge';
-                    } else if (name.includes('.total') || name.includes('_total') ||
-                        name.includes('.count') || name.includes('_count')) {
+                    } else if (hasTotal || hasCount) {
                         metricType = 'Counter';
                     } else {
                         metricType = 'Gauge';
                     }
                 }
+                
+                console.log(`  → Final detected type: ${metricType}`);
                 
                 // Extract the actual value for display
                 if (point.histogram !== undefined) {
@@ -80,7 +91,7 @@ export async function renderMetrics(metricsData) {
             const chartId = `chart-${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
             
             const row = `
-                <div class="metric-row" data-metric-name="${name}">
+                <div class="metric-row" data-metric-name="${name}" data-metric-type="${metricType.toLowerCase()}">
                     <div class="metric-header">
                         <div class="metric-cell metric-col-name">${name}</div>
                         <div class="metric-cell metric-col-type">
@@ -108,7 +119,7 @@ export async function renderMetrics(metricsData) {
             
             // Still show the metric name even if we can't fetch data
             const row = `
-                <div class="metric-row" data-metric-name="${name}">
+                <div class="metric-row" data-metric-name="${name}" data-metric-type="${metricType.toLowerCase()}">
                     <div class="metric-header">
                         <div class="metric-cell metric-col-name">${name}</div>
                         <div class="metric-cell metric-col-type">
@@ -136,6 +147,7 @@ export async function renderMetrics(metricsData) {
     container.querySelectorAll('.metric-row').forEach(row => {
         const header = row.querySelector('.metric-header');
         const metricName = row.dataset.metricName;
+        const metricType = row.dataset.metricType; // Get type from data attribute
         
         header.addEventListener('click', async () => {
             const isExpanded = row.classList.contains('expanded');
@@ -148,9 +160,7 @@ export async function renderMetrics(metricsData) {
                 // Load and render chart if not already loaded
                 const chartCanvas = row.querySelector('canvas');
                 if (chartCanvas && !chartCanvas.dataset.loaded) {
-                    // Get the metric type from the row
-                    const typeBadge = row.querySelector('.metric-type-badge');
-                    const metricType = typeBadge ? typeBadge.textContent.toLowerCase() : null;
+                    console.log(`Rendering chart for ${metricName}, type from data-attribute: ${metricType}`);
                     await renderMetricChart(metricName, chartCanvas, metricType);
                     chartCanvas.dataset.loaded = 'true';
                 }
@@ -198,14 +208,21 @@ async function renderMetricChart(metricName, canvas, metricType) {
         const firstPoint = data.data[0];
         const actualType = metricType || firstPoint.type || 'gauge';
         
+        console.log(`Chart for ${metricName}: metricType=${metricType}, firstPoint.type=${firstPoint.type}, actualType=${actualType}`);
+        
         // Route to appropriate visualization
-        if (actualType.toLowerCase() === 'histogram') {
+        const typeLower = actualType.toLowerCase();
+        if (typeLower === 'histogram') {
+            console.log(`Rendering histogram for ${metricName}`);
             renderHistogramChart(metricName, canvas, data.data);
-        } else if (actualType.toLowerCase() === 'gauge') {
+        } else if (typeLower === 'gauge') {
+            console.log(`Rendering gauge for ${metricName}`);
             renderGaugeChart(metricName, canvas, data.data);
-        } else if (actualType.toLowerCase() === 'counter') {
+        } else if (typeLower === 'counter') {
+            console.log(`Rendering counter for ${metricName}`);
             renderCounterChart(metricName, canvas, data.data);
         } else {
+            console.log(`Rendering line chart for ${metricName}, type: ${typeLower}`);
             renderLineChart(metricName, canvas, data.data, actualType);
         }
     } catch (error) {
