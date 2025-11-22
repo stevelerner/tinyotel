@@ -1,4 +1,5 @@
 #!/bin/bash
+set +e  # Don't exit on errors
 
 echo "Starting TinyOlly Core (No Demo App)"
 echo "=================================================="
@@ -13,7 +14,15 @@ echo "Starting services..."
 echo ""
 
 # Use docker-compose with TinyOlly Core config
-docker-compose -f docker-compose-tinyolly-core.yml up -d --build
+docker-compose -f docker-compose-tinyolly-core.yml up -d --build 2>&1
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "✗ Failed to start core services (exit code: $EXIT_CODE)"
+    echo "Check the error messages above for details"
+    exit 1
+fi
 
 echo ""
 echo "Services started!"

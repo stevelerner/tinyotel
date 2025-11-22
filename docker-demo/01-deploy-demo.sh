@@ -1,4 +1,5 @@
 #!/bin/bash
+set +e  # Don't exit on errors
 
 echo "========================================================"
 echo "  TinyOlly - Deploy Demo Apps"
@@ -7,7 +8,7 @@ echo ""
 
 # Check if TinyOlly core is running
 echo "Checking if TinyOlly core is running..."
-if ! docker ps | grep -q "otel-collector"; then
+if ! docker ps 2>/dev/null | grep -q "otel-collector"; then
     echo "✗ OTel Collector not found"
     echo ""
     echo "Please start TinyOlly core first:"
@@ -17,7 +18,7 @@ if ! docker ps | grep -q "otel-collector"; then
     exit 1
 fi
 
-if ! docker ps | grep -q "tinyolly-otlp-receiver"; then
+if ! docker ps 2>/dev/null | grep -q "tinyolly-otlp-receiver"; then
     echo "✗ TinyOlly OTLP Receiver not found"
     echo ""
     echo "Please start TinyOlly core first:"
@@ -34,11 +35,13 @@ echo ""
 echo "Deploying demo applications..."
 echo ""
 
-docker-compose -f docker-compose-demo.yml up -d --build
+docker-compose -f docker-compose-demo.yml up -d --build 2>&1
+EXIT_CODE=$?
 
-if [ $? -ne 0 ]; then
+if [ $EXIT_CODE -ne 0 ]; then
     echo ""
-    echo "✗ Failed to deploy demo apps"
+    echo "✗ Failed to deploy demo apps (exit code: $EXIT_CODE)"
+    echo "Check the error messages above for details"
     exit 1
 fi
 
