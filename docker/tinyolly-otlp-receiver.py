@@ -156,12 +156,16 @@ def store_metric(metric_data):
                             continue
                         
                         # Handle different metric types
+                        metric_type = None
                         if 'sum' in metric:
                             data_points = metric['sum'].get('dataPoints', [])
+                            metric_type = 'counter'
                         elif 'gauge' in metric:
                             data_points = metric['gauge'].get('dataPoints', [])
+                            metric_type = 'gauge'
                         elif 'histogram' in metric:
                             data_points = metric['histogram'].get('dataPoints', [])
+                            metric_type = 'histogram'
                         else:
                             continue
                         
@@ -240,7 +244,8 @@ def store_metric(metric_data):
                                 'name': metric_name,
                                 'timestamp': timestamp,
                                 'value': value,
-                                'labels': labels
+                                'labels': labels,
+                                'type': metric_type
                             }
                             
                             # Add histogram data if available

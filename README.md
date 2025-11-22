@@ -26,6 +26,16 @@ This starts:
 
 **Open the UI:** `http://localhost:5005` (empty until you send data)
 
+**Stop core services:**
+```bash
+./02-stop-core.sh
+```
+
+**Rebuild core services (after code changes):**
+```bash
+./03-rebuild.sh
+```
+
 ### 2. Deploy Demo Apps (Optional)
 
 Deploy two Flask microservices with automatic traffic generation:
@@ -40,6 +50,11 @@ Wait 30 seconds. **The demo apps automatically generate traffic** - traces, logs
 **Stop demo apps:**
 ```bash
 ./02-cleanup-demo.sh
+```
+
+**Rebuild demo apps (after code changes):**
+```bash
+./03-rebuild-demo.sh
 ```
 
 This leaves TinyOlly core running. To stop everything:

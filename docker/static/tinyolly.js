@@ -898,6 +898,9 @@ let histogramBucketCharts = {}; // Store bucket bar charts for histograms
 
 let expandedMetrics = new Set(); // Track which metrics are expanded
 let metricLatestValues = {}; // Store latest values for each metric
+let metricTypes = {}; // Store metric types
+let metricSortColumn = 'name'; // 'name', 'type', or 'value'
+let metricSortDirection = 'asc'; // 'asc' or 'desc'
 
 async function loadMetrics() {
     try {
@@ -937,76 +940,192 @@ async function loadMetrics() {
             </div>`;
         }
 
+        // Fetch metric types and values for all metrics
+        for (const name of metricNames) {
+            await fetchMetricTypeAndValue(name);
+        }
+
         // Check if metric list has changed
         const metricsChanged = JSON.stringify(metricNames.sort()) !== JSON.stringify(currentMetricNames.sort());
 
         if (metricsChanged) {
             console.log('Metrics list changed, recreating table');
             currentMetricNames = metricNames;
-            
-            // Render table (but don't initialize charts yet)
-            const metricsHtml = metricNames.map(name => {
-                const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
-                const isExpanded = expandedMetrics.has(name);
-                return `
-                    <div class="metric-row ${isExpanded ? 'expanded' : ''}" id="metric-row-${safeId}" data-metric-name="${name}">
-                        <div class="metric-header" onclick="toggleMetric('${name}')">
-                            <div class="metric-row-name">${name}</div>
-                            <div class="metric-row-value" id="metric-value-${safeId}">-</div>
-                            <div class="metric-row-time" id="metric-time-${safeId}">-</div>
-                            <div class="metric-expand-icon">▶</div>
-                        </div>
-                        <div class="metric-chart-container">
-                            <div class="metric-chart" id="metric-${safeId}" data-metric-name="${name}" style="height: 200px;">
-                                <canvas></canvas>
-                            </div>
-                            <div class="histogram-info" id="histogram-${safeId}" style="display: none; margin-top: 15px;">
-                                <div class="histogram-stats">
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Min:</span>
-                                        <span class="histogram-stat-value" id="hist-min-${safeId}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Avg:</span>
-                                        <span class="histogram-stat-value" id="hist-avg-${safeId}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Max:</span>
-                                        <span class="histogram-stat-value" id="hist-max-${safeId}">-</span>
-                                    </div>
-                                    <div class="histogram-stat">
-                                        <span class="histogram-stat-label">Count:</span>
-                                        <span class="histogram-stat-value" id="hist-count-${safeId}">-</span>
-                                    </div>
-                                </div>
-                                <div class="histogram-bucket-chart" id="histogram-bucket-${safeId}" style="height: 150px;">
-                                    <canvas></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Combine warning and metrics HTML
-            container.innerHTML = warningHtml + metricsHtml;
-
-            // Initialize charts only for expanded metrics
-            expandedMetrics.forEach(name => {
-                if (metricNames.includes(name)) {
-                    initMetricChart(name);
-                }
-            });
         }
 
-        // Update latest values and data for expanded metrics
-        for (const name of metricNames) {
-            await updateMetricRowData(name);
-        }
+        // Render table with sorting
+        renderMetricsTable(warningHtml, container);
+
     } catch (error) {
         console.error('Error loading metrics:', error);
         container.innerHTML = '<div class="empty">Error loading metrics</div>';
         currentMetricNames = [];
+    }
+}
+
+async function fetchMetricTypeAndValue(name) {
+    try {
+        const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
+        const data = await response.json();
+        
+        // API returns {name: ..., data: [...]}
+        const points = data.data || [];
+        
+        if (points && points.length > 0) {
+            // Get the most recent point
+            const point = points[points.length - 1];
+            
+            // Get the metric type from the stored data
+            let type = point.type || 'counter';
+            let value = point.value || 0;
+            
+            // For histograms, use the average value
+            if (type === 'histogram' && point.histogram) {
+                const hist = point.histogram;
+                value = hist.average || ((hist.sum && hist.count) ? hist.sum / hist.count : 0);
+            }
+            
+            metricTypes[name] = type;
+            metricLatestValues[name] = {
+                type: type,
+                value: value,
+                rawPoint: point
+            };
+        }
+    } catch (err) {
+        console.error(`Error fetching metric type for ${name}:`, err);
+    }
+}
+
+function renderMetricsTable(warningHtml, container) {
+    // Sort metrics
+    const sortedMetrics = [...currentMetricNames].sort((a, b) => {
+        let comparison = 0;
+        
+        if (metricSortColumn === 'name') {
+            comparison = a.localeCompare(b);
+        } else if (metricSortColumn === 'type') {
+            const typeA = metricTypes[a] || 'counter';
+            const typeB = metricTypes[b] || 'counter';
+            comparison = typeA.localeCompare(typeB);
+            // Secondary sort by name
+            if (comparison === 0) {
+                comparison = a.localeCompare(b);
+            }
+        } else if (metricSortColumn === 'value') {
+            const valueA = metricLatestValues[a]?.value || 0;
+            const valueB = metricLatestValues[b]?.value || 0;
+            comparison = valueA - valueB;
+        }
+        
+        return metricSortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    // Render table header
+    const tableHeader = `
+        <div class="metrics-table-header">
+            <div class="metric-header-cell metric-col-name" onclick="sortMetrics('name')">
+                Metric Name ${metricSortColumn === 'name' ? (metricSortDirection === 'asc' ? '▲' : '▼') : ''}
+            </div>
+            <div class="metric-header-cell metric-col-type" onclick="sortMetrics('type')">
+                Type ${metricSortColumn === 'type' ? (metricSortDirection === 'asc' ? '▲' : '▼') : ''}
+            </div>
+            <div class="metric-header-cell metric-col-value" onclick="sortMetrics('value')">
+                Value ${metricSortColumn === 'value' ? (metricSortDirection === 'asc' ? '▲' : '▼') : ''}
+            </div>
+        </div>
+    `;
+
+    // Render metric rows
+    const metricsHtml = sortedMetrics.map(name => {
+        const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+        const isExpanded = expandedMetrics.has(name);
+        const type = metricTypes[name] || 'counter';
+        const latestData = metricLatestValues[name];
+        const value = latestData?.value !== undefined ? formatMetricValue(latestData.value, type) : '-';
+        
+        return `
+            <div class="metric-row ${isExpanded ? 'expanded' : ''}" id="metric-row-${safeId}" data-metric-name="${name}">
+                <div class="metric-header" onclick="toggleMetric('${name}')">
+                    <div class="metric-cell metric-col-name">${name}</div>
+                    <div class="metric-cell metric-col-type">
+                        <span class="metric-type-badge metric-type-${type}">${type}</span>
+                    </div>
+                    <div class="metric-cell metric-col-value" id="metric-value-${safeId}">${value}</div>
+                    <div class="metric-expand-icon">▶</div>
+                </div>
+                <div class="metric-chart-container">
+                    <div class="metric-chart" id="metric-${safeId}" data-metric-name="${name}" style="height: 200px;">
+                        <canvas></canvas>
+                    </div>
+                    <div class="histogram-info" id="histogram-${safeId}" style="display: none; margin-top: 15px;">
+                        <div class="histogram-stats">
+                            <div class="histogram-stat">
+                                <span class="histogram-stat-label">Min:</span>
+                                <span class="histogram-stat-value" id="hist-min-${safeId}">-</span>
+                            </div>
+                            <div class="histogram-stat">
+                                <span class="histogram-stat-label">Avg:</span>
+                                <span class="histogram-stat-value" id="hist-avg-${safeId}">-</span>
+                            </div>
+                            <div class="histogram-stat">
+                                <span class="histogram-stat-label">Max:</span>
+                                <span class="histogram-stat-value" id="hist-max-${safeId}">-</span>
+                            </div>
+                            <div class="histogram-stat">
+                                <span class="histogram-stat-label">Count:</span>
+                                <span class="histogram-stat-value" id="hist-count-${safeId}">-</span>
+                            </div>
+                        </div>
+                        <div class="histogram-bucket-chart" id="histogram-bucket-${safeId}" style="height: 150px;">
+                            <canvas></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Combine warning, header, and metrics HTML
+    container.innerHTML = warningHtml + tableHeader + metricsHtml;
+
+    // Initialize charts only for expanded metrics
+    expandedMetrics.forEach(name => {
+        if (currentMetricNames.includes(name)) {
+            initMetricChart(name);
+        }
+    });
+}
+
+function sortMetrics(column) {
+    if (metricSortColumn === column) {
+        // Toggle direction
+        metricSortDirection = metricSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        // New column, default to ascending
+        metricSortColumn = column;
+        metricSortDirection = 'asc';
+    }
+    
+    // Re-render the table
+    const container = document.getElementById('metrics-container');
+    const warnings = container.querySelector('[style*="background"]')?.outerHTML || '';
+    renderMetricsTable(warnings, container);
+}
+
+function formatMetricValue(value, type) {
+    if (value === null || value === undefined) return '-';
+    
+    // Format based on type
+    if (type === 'histogram' || type === 'gauge') {
+        // Show decimal places for histograms and gauges
+        return value.toFixed(2);
+    } else {
+        // Counters: show as integer if it's a whole number
+        if (Number.isInteger(value)) {
+            return value.toLocaleString();
+        }
+        return value.toFixed(2);
     }
 }
 
@@ -1059,34 +1178,37 @@ async function updateMetricRowData(name) {
     const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
     
     try {
-        const response = await fetch(`/api/metrics/${name}`);
+        const response = await fetch(`/api/metrics/${encodeURIComponent(name)}`);
         const data = await response.json();
         
-        if (data.data && data.data.length > 0) {
-            const latest = data.data[data.data.length - 1];
-            metricLatestValues[name] = latest;
+        // API returns {name: ..., data: [...]}
+        const points = data.data || [];
+        
+        if (points && points.length > 0) {
+            // Get the most recent point
+            const point = points[points.length - 1];
+            
+            // Get the metric type from the stored data
+            let type = point.type || 'counter';
+            let value = point.value || 0;
+            
+            // For histograms, use the average value
+            if (type === 'histogram' && point.histogram) {
+                const hist = point.histogram;
+                value = hist.average || ((hist.sum && hist.count) ? hist.sum / hist.count : 0);
+            }
+            
+            metricTypes[name] = type;
+            metricLatestValues[name] = {
+                type: type,
+                value: value,
+                rawPoint: point
+            };
             
             // Update value display
             const valueEl = document.getElementById(`metric-value-${safeId}`);
             if (valueEl) {
-                valueEl.textContent = typeof latest.value === 'number' ? latest.value.toFixed(2) : latest.value;
-            }
-            
-            // Update time display
-            const timeEl = document.getElementById(`metric-time-${safeId}`);
-            if (timeEl && latest.timestamp) {
-                const date = new Date(latest.timestamp * 1000);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffSec = Math.floor(diffMs / 1000);
-                
-                if (diffSec < 60) {
-                    timeEl.textContent = `${diffSec}s ago`;
-                } else if (diffSec < 3600) {
-                    timeEl.textContent = `${Math.floor(diffSec / 60)}m ago`;
-                } else {
-                    timeEl.textContent = date.toLocaleTimeString();
-                }
+                valueEl.textContent = formatMetricValue(value, type);
             }
         }
         
