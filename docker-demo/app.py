@@ -11,6 +11,10 @@ import requests
 import threading
 import os
 from flask import Flask, jsonify
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 # Configure structured JSON logging
 logging.basicConfig(
@@ -27,6 +31,80 @@ def log_json(level, message, **kwargs):
         **kwargs
     }
     getattr(logger, level)(json.dumps(log_data))
+
+# Set up custom metrics
+exporter = OTLPMetricExporter(
+    endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+    insecure=True
+)
+reader = PeriodicExportingMetricReader(exporter, export_interval_millis=5000)
+provider = MeterProvider(metric_readers=[reader])
+metrics.set_meter_provider(provider)
+
+meter = metrics.get_meter(__name__)
+
+# Create custom metrics
+# Counter: Tracks cumulative values (always increasing)
+order_counter = meter.create_counter(
+    name="frontend.orders.total",
+    description="Total number of orders processed",
+    unit="orders"
+)
+
+request_counter = meter.create_counter(
+    name="frontend.requests.total",
+    description="Total number of requests by endpoint",
+    unit="requests"
+)
+
+error_counter = meter.create_counter(
+    name="frontend.errors.total",
+    description="Total number of errors",
+    unit="errors"
+)
+
+# Histogram: Records distribution of values
+response_time_histogram = meter.create_histogram(
+    name="frontend.response.duration",
+    description="Response time distribution",
+    unit="ms"
+)
+
+order_value_histogram = meter.create_histogram(
+    name="frontend.order.value",
+    description="Order value distribution",
+    unit="dollars"
+)
+
+# UpDownCounter: Can go up and down (for gauges)
+active_requests = meter.create_up_down_counter(
+    name="frontend.requests.active",
+    description="Number of active requests",
+    unit="requests"
+)
+
+# Observable Gauge: Reports current value at collection time
+def get_queue_size():
+    """Simulated queue size"""
+    return [metrics.Observation(random.randint(0, 50))]
+
+queue_gauge = meter.create_observable_gauge(
+    name="frontend.queue.size",
+    description="Current queue size",
+    unit="items",
+    callbacks=[get_queue_size]
+)
+
+def get_memory_usage():
+    """Simulated memory usage percentage"""
+    return [metrics.Observation(random.uniform(45.0, 85.0))]
+
+memory_gauge = meter.create_observable_gauge(
+    name="frontend.memory.usage",
+    description="Memory usage percentage",
+    unit="percent",
+    callbacks=[get_memory_usage]
+)
 
 app = Flask(__name__)
 
@@ -72,15 +150,34 @@ def generate_auto_traffic():
 
 @app.route('/')
 def home():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "home", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     logger.info("Home endpoint called")
-    return jsonify({
+    result = jsonify({
         "message": "TinyOlly Demo App",
         "endpoints": ["/", "/hello", "/calculate", "/process-order", "/error"],
         "auto_traffic": "enabled" if AUTO_TRAFFIC_ENABLED else "disabled"
     })
+    
+    # Record response time
+    duration_ms = (time.time() - start_time) * 1000
+    response_time_histogram.record(duration_ms, {"endpoint": "home"})
+    active_requests.add(-1)
+    
+    return result
 
 @app.route('/hello')
 def hello():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "hello", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     name = random.choice(["Alice", "Bob", "Charlie", "Diana"])
     logger.info(f"Greeting user: {name}")
     
@@ -90,13 +187,26 @@ def hello():
     
     logger.info(f"Completed greeting for {name}")
     
-    return jsonify({
+    result = jsonify({
         "message": f"Hello, {name}!",
         "timestamp": time.time()
     })
+    
+    # Record response time
+    duration_ms = (time.time() - start_time) * 1000
+    response_time_histogram.record(duration_ms, {"endpoint": "hello"})
+    active_requests.add(-1)
+    
+    return result
 
 @app.route('/calculate')
 def calculate():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "calculate", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     logger.info("Starting calculation")
     
     # Simulate complex calculation
@@ -123,6 +233,12 @@ def process_order():
     Complex endpoint showing distributed tracing across services.
     All spans are automatically created by OpenTelemetry instrumentation!
     """
+    # Record metrics
+    request_counter.add(1, {"endpoint": "process_order", "method": "GET"})
+    active_requests.add(1)
+    
+    start_time = time.time()
+    
     # Generate order details
     order_id = random.randint(1000, 9999)
     customer_id = random.randint(100, 999)
@@ -213,6 +329,13 @@ def process_order():
             
             logger.info(f"Order {order_id} completed successfully")
             
+            # Record successful order metrics
+            order_counter.add(1, {"status": "success"})
+            order_value_histogram.record(total_price, {"status": "success"})
+            duration_ms = (time.time() - start_time) * 1000
+            response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "success"})
+            active_requests.add(-1)
+            
             return jsonify({
                 "status": "success",
                 "order_id": order_id,
@@ -225,6 +348,13 @@ def process_order():
         else:
             logger.error("Payment declined")
             
+            # Record failed order metrics
+            order_counter.add(1, {"status": "declined"})
+            error_counter.add(1, {"type": "payment_declined"})
+            duration_ms = (time.time() - start_time) * 1000
+            response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "failed"})
+            active_requests.add(-1)
+            
             return jsonify({
                 "status": "failed",
                 "order_id": order_id,
@@ -234,6 +364,13 @@ def process_order():
     except requests.exceptions.RequestException as e:
         logger.error(f"Backend service error: {str(e)}")
         
+        # Record error metrics
+        order_counter.add(1, {"status": "error"})
+        error_counter.add(1, {"type": "backend_error"})
+        duration_ms = (time.time() - start_time) * 1000
+        response_time_histogram.record(duration_ms, {"endpoint": "process_order", "status": "error"})
+        active_requests.add(-1)
+        
         return jsonify({
             "status": "error",
             "order_id": order_id,
@@ -242,14 +379,21 @@ def process_order():
 
 @app.route('/error')
 def error():
+    # Record metrics
+    request_counter.add(1, {"endpoint": "error", "method": "GET"})
+    active_requests.add(1)
+    error_counter.add(1, {"type": "intentional"})
+    
     logger.error("Error endpoint called - simulating failure")
     
     # Randomly decide what kind of error
     if random.random() > 0.5:
         logger.error("Raising ValueError")
+        active_requests.add(-1)
         raise ValueError("Simulated error for testing")
     else:
         logger.warning("Returning error response")
+        active_requests.add(-1)
         return jsonify({"error": "Something went wrong"}), 500
 
 if __name__ == '__main__':
